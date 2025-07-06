@@ -1,4 +1,4 @@
-package com.example.shop.model;
+package com.example.shop.models;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -15,22 +15,23 @@ import java.util.List;
 @NoArgsConstructor
 @Getter
 @Setter
-public class Order {
+public class Cart {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "order_id")
-    private List<OderItem> items = new ArrayList<>();
+    @JoinColumn(name = "cart_id")
+    private List<CartItem> items =new ArrayList<>();
 
-    private BigDecimal total;
-
-    @PrePersist
-    public void prePersist() {
-        this.total =  items.stream()
+    public BigDecimal getTotal() {
+        return items.stream()
                 .map(ci -> ci.getItem().getPrice().multiply(BigDecimal.valueOf(ci.getCount())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public boolean isEmpty() {
+        return items == null || items.isEmpty();
     }
 
 }
