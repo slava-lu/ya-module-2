@@ -19,5 +19,11 @@ public class CartItem {
     @ManyToOne
     private Item item;
 
+    @ManyToOne
+    @JoinColumn(name="cart_id")
+    private Cart cart;
+
     private int count;
+
+    public void setCart(Cart cart) { this.cart = cart; }
 }

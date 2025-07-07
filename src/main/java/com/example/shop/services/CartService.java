@@ -1,10 +1,14 @@
 package com.example.shop.services;
 
+import com.example.shop.models.Cart;
 import com.example.shop.models.CartItem;
 import com.example.shop.models.Item;
+import com.example.shop.repositories.CartItemRepository;
+import com.example.shop.repositories.CartRepository;
 import com.example.shop.repositories.ItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -12,32 +16,56 @@ import java.util.*;
 @RequiredArgsConstructor
 public class CartService {
 
-    private final Map<Long, CartItem> items = new HashMap<>();
-    private final ItemRepository itemRepository;
+    private final CartRepository cartRepo;
+    private final CartItemRepository cartItemRepo;
+    private final ItemRepository itemRepo;
 
-    public int getCount(Long itemId) {
-        CartItem ci = items.get(itemId);
-        return (ci != null ? ci.getCount() : 0);
+    private Long demoCartId = null;
+
+    @Transactional
+    public Cart getOrCreateCart() {
+        if (demoCartId != null) {
+            return cartRepo.findById(demoCartId)
+                    .orElseThrow(() -> new IllegalStateException("Demo cart was deleted"));
+        }
+        Cart newCart = new Cart();
+        Cart saved = cartRepo.save(newCart);
+        demoCartId = saved.getId();
+        return saved;
     }
 
+    @Transactional
     public void add(Long itemId) {
-        items.compute(itemId, (id, ci) -> {
-            if (ci == null) {
-                ci = new CartItem();
-                Item item = itemRepository.findById(id)
-                        .orElseThrow(() -> new NoSuchElementException("Item not found: " + id));
-                ci.setItem(item);
-                ci.setCount(0);
-            }
-            ci.setCount(ci.getCount() + 1);
-            return ci;
-        });
+        Cart cart = getOrCreateCart();                           // managed
+        Item item = itemRepo.findById(itemId)
+                .orElseThrow(() -> new IllegalArgumentException("No item " + itemId));
+        CartItem ci = cart.getItems().stream()
+                .filter(x -> x.getItem().getId().equals(itemId))
+                .findFirst()
+                .orElseGet(() -> {
+                    CartItem newCi = new CartItem();
+                    newCi.setItem(item);
+                    newCi.setCount(0);
+                    newCi.setCart(cart);
+                    cart.getItems().add(newCi);
+                    return newCi;
+                });
+        ci.setCount(ci.getCount() + 1);
     }
 
+    @Transactional
     public void remove(Long itemId) {
-        items.computeIfPresent(itemId, (id, ci) -> {
-            int c = ci.getCount() - 1;
-            return c > 0 ? ci : null;
-        });
+        Cart cart = getOrCreateCart();
+        cart.getItems().stream()
+                .filter(x -> x.getItem().getId().equals(itemId))
+                .findFirst()
+                .ifPresent(ci -> {
+                    if (ci.getCount() > 1) {
+                        ci.setCount(ci.getCount() - 1);
+                    } else {
+                        cart.getItems().remove(ci);
+                        cartItemRepo.delete(ci);
+                    }
+                });
     }
 }
