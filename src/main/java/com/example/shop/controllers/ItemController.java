@@ -86,4 +86,43 @@ public class ItemController {
         return String.format("redirect:/main/items?search=%s&sort=%s&pageSize=%d&pageNumber=%d",
                 search, sort, pageSize, pageNumber);
     }
+
+    @GetMapping("items/{id}")
+    public String showItem(
+            @PathVariable Long id,
+            Model model
+    ) {
+        // 1. Load the item
+        Item item = itemService.getById(id);
+
+        // 2. Populate transient count from cart
+        item.setCount(
+                cartService.getOrCreateCart()
+                        .getItems()
+                        .stream()
+                        .filter(ci -> ci.getItem().getId().equals(id))
+                        .findFirst()
+                        .map(ci -> ci.getCount())
+                        .orElse(0)
+        );
+
+        model.addAttribute("item", item);
+        return "item";
+    }
+
+    // Handle plus/minus on the detail page
+    @PostMapping("/items/{id}")
+    public String updateItemCount(
+            @PathVariable Long id,
+            @RequestParam String action
+    ) {
+        if ("plus".equals(action)) {
+            cartService.add(id);
+        } else if ("minus".equals(action)) {
+            cartService.remove(id);
+        }
+        // Redirect back to this item’s detail page
+        return "redirect:/items/" + id;
+    }
+
 }

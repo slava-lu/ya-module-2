@@ -10,6 +10,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.util.NoSuchElementException;
+
 @Service
 @RequiredArgsConstructor
 public class ItemService {
@@ -22,6 +24,11 @@ public class ItemService {
             return itemRepository.findAll(pageable);
         }
         return itemRepository.findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(search, search, pageable);
+    }
+
+    public Item getById(Long id) {
+        return itemRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Item not found: " + id));
     }
 
     private Sort resolveSort(ItemSort sort) {
