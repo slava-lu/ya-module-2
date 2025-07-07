@@ -68,4 +68,16 @@ public class CartService {
                     }
                 });
     }
+
+    @Transactional
+    public void delete(Long itemId) {
+        Cart cart = getOrCreateCart();
+        cart.getItems().stream()
+                .filter(x -> x.getItem().getId().equals(itemId))
+                .findFirst()
+                .ifPresent(ci -> {
+                    cart.getItems().remove(ci);
+                    cartItemRepo.delete(ci);
+                });
+    }
 }
