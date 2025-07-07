@@ -1,8 +1,7 @@
 package com.example.shop.controllers;
-
-import com.example.shop.dto.ItemViewModel;
 import com.example.shop.models.Item;
 import com.example.shop.models.ItemSort;
+import com.example.shop.services.CartService;
 import com.example.shop.services.ItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -18,6 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ItemController {
     private final ItemService itemService;
+    private final CartService cartService;
 
     @GetMapping
     public String showItems(
@@ -25,33 +25,30 @@ public class ItemController {
             @RequestParam(defaultValue = "NO") ItemSort sort,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(defaultValue = "1") int pageNumber,
-            Model model) {
-
+            Model model
+    ) {
         Page<Item> page = itemService.getItems(search, sort, pageNumber, pageSize);
 
-        List<ItemViewModel> itemVMs = page.getContent().stream()
-                .map(item -> new ItemViewModel(item, getItemCountInCart(item.getId())))
-                .toList();
+        // populate transient count on each Item
+        page.getContent().forEach(item ->
+                item.setCount(cartService.getCount(item.getId()))
+        );
 
-        // Group into rows
-        int itemsPerRow = 3;
-        List<List<ItemViewModel>> groupedItems = new ArrayList<>();
-        List<ItemViewModel> row = new ArrayList<>();
-        for (ItemViewModel vm : itemVMs) {
-            row.add(vm);
-            if (row.size() == itemsPerRow) {
-                groupedItems.add(row);
+        // group into rows of 3
+        List<List<Item>> rows = new ArrayList<>();
+        List<Item> row = new ArrayList<>();
+        for (Item it : page.getContent()) {
+            row.add(it);
+            if (row.size() == 3) {
+                rows.add(row);
                 row = new ArrayList<>();
             }
         }
-        if (!row.isEmpty()) {
-            groupedItems.add(row);
-        }
+        if (!row.isEmpty()) rows.add(row);
 
-        model.addAttribute("items", groupedItems);
+        model.addAttribute("items", rows);
         model.addAttribute("search", search);
         model.addAttribute("sort", sort);
-
         model.addAttribute("paging", new Object() {
             public int pageNumber() { return pageNumber; }
             public int pageSize() { return pageSize; }
@@ -61,7 +58,22 @@ public class ItemController {
 
         return "main";
     }
-    private int getItemCountInCart(Long itemId) {
-        return 0;
+
+    @PostMapping("/{id}")
+    public String updateCount(
+            @PathVariable Long id,
+            @RequestParam String action,
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "NO") ItemSort sort,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(defaultValue = "1") int pageNumber
+    ) {
+        if ("plus".equals(action)) {
+            cartService.add(id);
+        } else if ("minus".equals(action)) {
+            cartService.remove(id);
+        }
+        return String.format("redirect:/main/items?search=%s&sort=%s&pageSize=%d&pageNumber=%d",
+                search, sort, pageSize, pageNumber);
     }
 }
