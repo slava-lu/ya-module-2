@@ -13,13 +13,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Controller
-@RequestMapping("/main/items")
+@RequestMapping
 @RequiredArgsConstructor
 public class ItemController {
     private final ItemService itemService;
     private final CartService cartService;
 
-    @GetMapping
+    @GetMapping("/")
+    public String redirectToMainItems() {
+        return "redirect:/main/items";
+    }
+
+    @GetMapping("/main/items")
     public String showItems(
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "NO") ItemSort sort,
@@ -59,7 +64,7 @@ public class ItemController {
         return "main";
     }
 
-    @PostMapping("/{id}")
+    @PostMapping("/main/items/{id}")
     public String updateCount(
             @PathVariable Long id,
             @RequestParam String action,
