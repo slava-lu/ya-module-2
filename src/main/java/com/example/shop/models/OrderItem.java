@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 
 @Entity
 @AllArgsConstructor
@@ -21,5 +23,16 @@ public class OrderItem {
     private Item item;
 
     private int count;
+
+    @ManyToOne
+    @JoinColumn(name="order_id")
+    private Order order;
+
+    // Expose Item fields directly so template can do item.getTitle(), etc.
+    public Long getId()         { return item.getId();        }
+    public String getTitle()    { return item.getTitle();     }
+    public String getDescription(){ return item.getDescription();}
+    public String getImgPath()  { return item.getImgPath();   }
+    public BigDecimal getPrice(){ return item.getPrice();       }
 
 }

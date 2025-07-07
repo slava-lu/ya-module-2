@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(name = "orders")
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
@@ -32,5 +33,10 @@ public class Order {
                 .map(ci -> ci.getItem().getPrice().multiply(BigDecimal.valueOf(ci.getCount())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
+
+    // For Thymeleaf convenience (template calls order.id(), order.items())
+    public Long id() { return id; }
+    public List<OrderItem> items() { return items; }
+    public BigDecimal totalSum() { return total; }
 
 }
