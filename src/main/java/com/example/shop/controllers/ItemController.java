@@ -92,10 +92,8 @@ public class ItemController {
             @PathVariable Long id,
             Model model
     ) {
-        // 1. Load the item
         Item item = itemService.getById(id);
 
-        // 2. Populate transient count from cart
         item.setCount(
                 cartService.getOrCreateCart()
                         .getItems()
@@ -110,7 +108,6 @@ public class ItemController {
         return "item";
     }
 
-    // Handle plus/minus on the detail page
     @PostMapping("/items/{id}")
     public String updateItemCount(
             @PathVariable Long id,
@@ -121,7 +118,6 @@ public class ItemController {
         } else if ("minus".equals(action)) {
             cartService.remove(id);
         }
-        // Redirect back to this item’s detail page
         return "redirect:/items/" + id;
     }
 
