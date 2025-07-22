@@ -1,15 +1,16 @@
 package com.example.shop.services;
 
-import com.example.shop.models.Cart;
 import com.example.shop.models.CartItem;
 import com.example.shop.models.Order;
 import com.example.shop.models.OrderItem;
+import com.example.shop.repositories.CartItemRepository;
+import com.example.shop.repositories.OrderItemRepository;
 import com.example.shop.repositories.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
@@ -17,33 +18,60 @@ import java.util.NoSuchElementException;
 public class OrderService {
 
     private final OrderRepository orderRepo;
+    private final OrderItemRepository orderItemRepo;
     private final CartService cartService;
+    private final CartItemRepository cartItemRepo;
+    public Mono<Order> buyCart() {
+        return cartService.getOrCreateCart()
+                .flatMap(cart -> {
 
-    @Transactional
-    public Order buyCart() {
-        Cart cart = cartService.getOrCreateCart();
+                    Order order = new Order();
+                    for (CartItem ci : cart.getItems()) {
+                        OrderItem oi = new OrderItem();
+                        oi.setItemId(ci.getItemId());
+                        oi.setCount(ci.getCount());
+                        order.getItems().add(oi);
+                    }
+                    order.computeTotal();
 
-        Order order = new Order();
-        for (CartItem ci : cart.getItems()) {
-            OrderItem oi = new OrderItem();
-            oi.setItem(ci.getItem());
-            oi.setCount(ci.getCount());
-            oi.setOrder(order);
-            order.getItems().add(oi);
-        }
-        Order saved = orderRepo.save(order);
-
-        cart.getItems().clear();
-
-        return saved;
+                    return orderRepo.save(order)
+                            .flatMap(savedOrder ->
+                                    Flux.fromIterable(order.getItems())
+                                            .doOnNext(oi -> oi.setOrderId(savedOrder.getId()))
+                                            .flatMap(orderItemRepo::save)
+                                            .then()
+                                            .thenReturn(savedOrder)
+                            )
+                            .flatMap(savedOrder ->
+                                    cartItemRepo.findByCartId(cart.getId())
+                                            .flatMap(cartItemRepo::delete)
+                                            .then()
+                                            .thenReturn(savedOrder)
+                            );
+                });
     }
 
-    public List<Order> findAll() {
-        return orderRepo.findAll();
+
+    public Flux<Order> findAll() {
+        return orderRepo.findAll()
+                .flatMap(this::loadOrder);
     }
 
-    public Order getById(Long id) {
+    public Mono<Order> getById(Long id) {
         return orderRepo.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Order not found: " + id));
+                .switchIfEmpty(Mono.error(new NoSuchElementException("Order not found: " + id)))
+                .flatMap(this::loadOrder);
+    }
+
+    private Mono<Order> loadOrder(Order order) {
+        return orderItemRepo.findByOrderId(order.getId())
+                .flatMap(oi ->
+                        cartService
+                                .getOrCreateCart()
+                                .thenReturn(oi)
+                )
+                .collectList()
+                .doOnNext(order::setItems)
+                .thenReturn(order);
     }
 }
