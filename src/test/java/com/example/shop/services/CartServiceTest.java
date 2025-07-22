@@ -13,9 +13,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mockito;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,16 +37,16 @@ class CartServiceTest {
     private CartService service;
 
     @BeforeEach
-    void resetService() {
+    void setUp() {
     }
 
     @Test
     void getOrCreateCart_firstTime_createsAndCachesId() {
         Cart saved = new Cart();
         saved.setId(100L);
-        when(cartRepo.save(any(Cart.class))).thenReturn(saved);
+        when(cartRepo.save(any(Cart.class))).thenReturn(Mono.just(saved));
 
-        Cart result = service.getOrCreateCart();
+        Cart result = service.getOrCreateCart().block();
 
         assertSame(saved, result);
         verify(cartRepo, never()).findById(anyLong());
@@ -57,17 +57,18 @@ class CartServiceTest {
     void getOrCreateCart_subsequent_loadsExisting() {
         Cart firstSaved = new Cart();
         firstSaved.setId(200L);
-        when(cartRepo.save(any(Cart.class))).thenReturn(firstSaved);
+        when(cartRepo.save(any(Cart.class))).thenReturn(Mono.just(firstSaved));
 
         Cart loaded = new Cart();
         loaded.setId(200L);
-        when(cartRepo.findById(200L)).thenReturn(Optional.of(loaded));
+        when(cartRepo.findById(200L)).thenReturn(Mono.just(loaded));
 
-
-        Cart r1 = service.getOrCreateCart();
+        // first call creates
+        Cart r1 = service.getOrCreateCart().block();
         assertSame(firstSaved, r1);
 
-        Cart r2 = service.getOrCreateCart();
+        // second call loads
+        Cart r2 = service.getOrCreateCart().block();
         assertSame(loaded, r2);
 
         verify(cartRepo).save(any(Cart.class));
@@ -78,36 +79,36 @@ class CartServiceTest {
     void getOrCreateCart_afterDelete_throws() {
         Cart first = new Cart();
         first.setId(300L);
-        when(cartRepo.save(any(Cart.class))).thenReturn(first);
-        when(cartRepo.findById(300L)).thenReturn(Optional.empty());
+        when(cartRepo.save(any(Cart.class))).thenReturn(Mono.just(first));
+        when(cartRepo.findById(300L)).thenReturn(Mono.empty());
 
+        service.getOrCreateCart().block();  // creates and caches
 
-        service.getOrCreateCart();
-        // now simulate deletion
         IllegalStateException ex = assertThrows(
                 IllegalStateException.class,
-                () -> service.getOrCreateCart()
+                () -> service.getOrCreateCart().block()
         );
         assertEquals("Demo cart was deleted", ex.getMessage());
     }
 
     @Test
     void add_newItem_createsCartItemWithCountOne() {
-
         CartService spySvc = Mockito.spy(service);
 
         Cart cart = new Cart();
-
-        doReturn(cart).when(spySvc).getOrCreateCart();
+        doReturn(Mono.just(cart)).when(spySvc).getOrCreateCart();
 
         Item item = new Item();
         item.setId(10L);
         item.setPrice(BigDecimal.valueOf(2.5));
-        when(itemRepo.findById(10L)).thenReturn(Optional.of(item));
+        when(itemRepo.findById(10L)).thenReturn(Mono.just(item));
 
-        spySvc.add(10L);
+        Cart result = spySvc.add(10L).block();
 
+        // result is the loaded cart
+        assertSame(cart, result);
         assertEquals(1, cart.getItems().size());
+
         CartItem ci = cart.getItems().get(0);
         assertEquals(item, ci.getItem());
         assertEquals(1, ci.getCount());
@@ -121,16 +122,19 @@ class CartServiceTest {
         Item item = new Item();
         item.setId(20L);
         CartItem existing = new CartItem();
+        existing.setItemId(20L);
         existing.setItem(item);
         existing.setCount(5);
+        existing.setCartId(1L);
         existing.setCart(cart);
         cart.getItems().add(existing);
 
-        doReturn(cart).when(spySvc).getOrCreateCart();
-        when(itemRepo.findById(20L)).thenReturn(Optional.of(item));
+        doReturn(Mono.just(cart)).when(spySvc).getOrCreateCart();
+        when(itemRepo.findById(20L)).thenReturn(Mono.just(item));
 
-        spySvc.add(20L);
+        Cart result = spySvc.add(20L).block();
 
+        assertSame(cart, result);
         assertEquals(1, cart.getItems().size());
         assertEquals(6, cart.getItems().get(0).getCount());
     }
@@ -143,15 +147,17 @@ class CartServiceTest {
         Item item = new Item();
         item.setId(30L);
         CartItem ci = new CartItem();
+        ci.setItemId(30L);
         ci.setItem(item);
         ci.setCount(3);
         ci.setCart(cart);
         cart.getItems().add(ci);
 
-        doReturn(cart).when(spySvc).getOrCreateCart();
+        doReturn(Mono.just(cart)).when(spySvc).getOrCreateCart();
 
-        spySvc.remove(30L);
+        Cart result = spySvc.remove(30L).block();
 
+        assertSame(cart, result);
         assertEquals(1, cart.getItems().size());
         assertEquals(2, cart.getItems().get(0).getCount());
         verify(cartItemRepo, never()).delete(any());
@@ -165,17 +171,18 @@ class CartServiceTest {
         Item item = new Item();
         item.setId(40L);
         CartItem ci = new CartItem();
+        ci.setItemId(40L);
         ci.setItem(item);
         ci.setCount(1);
         ci.setCart(cart);
         cart.getItems().add(ci);
 
-        doReturn(cart).when(spySvc).getOrCreateCart();
+        doReturn(Mono.just(cart)).when(spySvc).getOrCreateCart();
 
-        spySvc.remove(40L);
+        Cart result = spySvc.remove(40L).block();
 
+        assertSame(cart, result);
         assertTrue(cart.getItems().isEmpty());
-
         verify(cartItemRepo).delete(ci);
     }
 
@@ -187,15 +194,17 @@ class CartServiceTest {
         Item item = new Item();
         item.setId(50L);
         CartItem ci = new CartItem();
+        ci.setItemId(50L);
         ci.setItem(item);
         ci.setCount(7);
         ci.setCart(cart);
         cart.getItems().add(ci);
 
-        doReturn(cart).when(spySvc).getOrCreateCart();
+        doReturn(Mono.just(cart)).when(spySvc).getOrCreateCart();
 
-        spySvc.delete(50L);
+        Cart result = spySvc.delete(50L).block();
 
+        assertSame(cart, result);
         assertTrue(cart.getItems().isEmpty());
         verify(cartItemRepo).delete(ci);
     }
