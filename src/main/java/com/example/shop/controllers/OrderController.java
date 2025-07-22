@@ -1,14 +1,11 @@
 package com.example.shop.controllers;
 
-import com.example.shop.models.Order;
 import com.example.shop.services.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
 
 @Controller
 @RequiredArgsConstructor

@@ -1,6 +1,5 @@
 package com.example.shop.controllers;
 
-import com.example.shop.models.Cart;
 import com.example.shop.models.CartItem;
 import com.example.shop.models.Item;
 import com.example.shop.models.ItemSort;

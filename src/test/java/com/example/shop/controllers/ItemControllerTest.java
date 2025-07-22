@@ -5,142 +5,164 @@ import com.example.shop.services.CartService;
 import com.example.shop.services.ItemService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.*;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
-@ExtendWith(MockitoExtension.class)
+@WebFluxTest(controllers = ItemController.class)
 class ItemControllerTest {
 
-    private MockMvc mockMvc;
+    @Autowired
+    private WebTestClient webTestClient;
 
-    @Mock
+    @MockitoBean
     private ItemService itemService;
 
-    @Mock
+    @MockitoBean
     private CartService cartService;
 
-    @InjectMocks
-    private ItemController controller;
+    private Page<Item> page;
+    private Cart cart;
 
     @BeforeEach
     void setUp() {
-        // Build MockMvc standalone so we don't start the full Spring context
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
-    }
-
-    @Test
-    void whenGetRoot_thenRedirectToMainItems() throws Exception {
-        mockMvc.perform(get("/"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/main/items"));
-    }
-
-    @Test
-    void whenShowItems_thenModelHasPagedItemsAndCounts() throws Exception {
         // prepare two items
         Item it1 = new Item(1L, "A", "desc A", "/img/a.png", BigDecimal.valueOf(5), 0);
         Item it2 = new Item(2L, "B", "desc B", "/img/b.png", BigDecimal.valueOf(10), 0);
         List<Item> content = List.of(it1, it2);
-        Page<Item> page = new PageImpl<>(content, PageRequest.of(0, 10), content.size());
+        page = new PageImpl<>(content, PageRequest.of(0, 10), content.size());
 
-        when(itemService.getItems("", ItemSort.NO, 1, 10)).thenReturn(page);
         // cart contains 3 of item1
-        CartItem ci = new CartItem(99L, it1, null, 3);
-        Cart cart = new Cart(77L, List.of(ci));
-        when(cartService.getOrCreateCart()).thenReturn(cart);
+        CartItem ci = new CartItem(); ci.setItem(it1); ci.setCount(3);
+        cart = new Cart(); cart.setId(77L); cart.setItems(List.of(ci));
+    }
 
-        var mvc = mockMvc.perform(get("/main/items"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("main"))
-                .andExpect(model().attribute("search", ""))
-                .andExpect(model().attribute("sort", ItemSort.NO))
-                .andExpect(model().attributeExists("items", "paging"))
-                .andReturn();
+    @Test
+    void whenGetRoot_thenRedirectToMainItems() {
+        webTestClient.get().uri("/")
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().location("/main/items");
+    }
 
-        @SuppressWarnings("unchecked")
-        var rows = (List<List<Item>>) mvc.getModelAndView().getModel().get("items");
-        assertEquals(1, rows.size());
-        assertEquals(2, rows.get(0).size());
-        assertEquals(3, rows.get(0).get(0).getCount());
-        assertEquals(0, rows.get(0).get(1).getCount());
+    @Test
+    void whenShowItems_thenPagedAndCountsRendered() {
+        when(itemService.getItems("", ItemSort.NO, 1, 10)).thenReturn(Mono.just(page));
+        when(cartService.getOrCreateCart()).thenReturn(Mono.just(cart));
+
+        webTestClient.get().uri(uriBuilder ->
+                        uriBuilder.path("/main/items")
+                                .queryParam("search", "")
+                                .queryParam("sort", "NO")
+                                .queryParam("pageSize", "10")
+                                .queryParam("pageNumber", "1")
+                                .build())
+                .accept(MediaType.TEXT_HTML)
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_HTML)
+                .expectBody(String.class)
+                .consumeWith(resp -> {
+                    String html = resp.getResponseBody();
+                    assert html.contains("A");
+                    assert html.contains("B");
+                    // item1 count = 3, item2 count = 0
+                    assert html.contains(">3<");
+                });
 
         verify(itemService).getItems("", ItemSort.NO, 1, 10);
         verify(cartService).getOrCreateCart();
     }
 
     @Test
-    void whenPostUpdateCount_plus_thenCartServiceAddAndRedirect() throws Exception {
-        mockMvc.perform(post("/main/items/5")
-                        .param("action", "plus")
-                        .param("search", "foo")
-                        .param("sort", "ALPHA")
-                        .param("pageSize", "5")
-                        .param("pageNumber", "2"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/main/items?search=foo&sort=ALPHA&pageSize=5&pageNumber=2"));
+    void whenPostUpdateCount_plus_thenAddAndRedirect() {
+        when(cartService.add(5L)).thenReturn(Mono.empty());
+
+        webTestClient.post()
+                .uri(uriBuilder ->
+                        uriBuilder.path("/main/items/{id}")
+                                .queryParam("action", "plus")
+                                .queryParam("search", "foo")
+                                .queryParam("sort", "ALPHA")
+                                .queryParam("pageSize", "5")
+                                .queryParam("pageNumber", "2")
+                                .build(5L))
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().location("/main/items?search=foo&sort=ALPHA&pageSize=5&pageNumber=2");
 
         verify(cartService).add(5L);
     }
 
     @Test
-    void whenPostUpdateCount_minus_thenCartServiceRemoveAndRedirectDefaults() throws Exception {
-        mockMvc.perform(post("/main/items/7")
-                        .param("action", "minus"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/main/items?search=&sort=NO&pageSize=10&pageNumber=1"));
+    void whenPostUpdateCount_minus_thenRemoveAndRedirectDefaults() {
+        when(cartService.remove(7L)).thenReturn(Mono.empty());
+
+        webTestClient.post()
+                .uri("/main/items/7?action=minus")
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().location("/main/items?search=&sort=NO&pageSize=10&pageNumber=1");
 
         verify(cartService).remove(7L);
     }
 
     @Test
-    void whenGetShowItem_thenModelHasItemWithCount() throws Exception {
+    void whenGetShowItem_thenModelHasItemWithCount() {
         Item item = new Item(3L, "X", "desc X", "/img/x.png", BigDecimal.valueOf(20), 0);
-        when(itemService.getById(3L)).thenReturn(item);
+        when(itemService.getById(3L)).thenReturn(Mono.just(item));
+        CartItem ci = new CartItem(); ci.setItem(item); ci.setCount(4);
+        Cart single = new Cart(); single.setId(88L); single.setItems(List.of(ci));
+        when(cartService.getOrCreateCart()).thenReturn(Mono.just(single));
 
-        CartItem ci = new CartItem(55L, item, null, 4);
-        Cart cart = new Cart(88L, List.of(ci));
-        when(cartService.getOrCreateCart()).thenReturn(cart);
-
-        var mvc = mockMvc.perform(get("/items/3"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("item"))
-                .andExpect(model().attributeExists("item"))
-                .andReturn();
-
-        Item modelItem = (Item) mvc.getModelAndView().getModel().get("item");
-        assertEquals(4, modelItem.getCount());
+        webTestClient.get().uri("/items/3")
+                .accept(MediaType.TEXT_HTML)
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_HTML)
+                .expectBody(String.class)
+                .consumeWith(resp -> {
+                    String html = resp.getResponseBody();
+                    assert html.contains("X");
+                    assert html.contains(">4<");
+                });
 
         verify(itemService).getById(3L);
         verify(cartService).getOrCreateCart();
     }
 
     @Test
-    void whenPostUpdateItemCount_plus_thenAddAndRedirectToDetail() throws Exception {
-        mockMvc.perform(post("/items/9").param("action", "plus"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items/9"));
+    void whenPostUpdateItemCount_plus_thenAddAndRedirectToDetail() {
+        when(cartService.add(9L)).thenReturn(Mono.empty());
+
+        webTestClient.post().uri("/items/9?action=plus")
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().location("/items/9");
 
         verify(cartService).add(9L);
     }
 
     @Test
-    void whenPostUpdateItemCount_minus_thenRemoveAndRedirectToDetail() throws Exception {
-        mockMvc.perform(post("/items/10").param("action", "minus"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items/10"));
+    void whenPostUpdateItemCount_minus_thenRemoveAndRedirectToDetail() {
+        when(cartService.remove(10L)).thenReturn(Mono.empty());
+
+        webTestClient.post().uri("/items/10?action=minus")
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().location("/items/10");
 
         verify(cartService).remove(10L);
     }
