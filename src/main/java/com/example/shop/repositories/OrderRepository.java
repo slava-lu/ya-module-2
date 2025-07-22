@@ -1,9 +1,7 @@
 package com.example.shop.repositories;
 
 import com.example.shop.models.Order;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
 
-import java.util.List;
-
-public interface OrderRepository extends JpaRepository<Order, Long> {
+public interface OrderRepository extends R2dbcRepository<Order, Long> {
 }
