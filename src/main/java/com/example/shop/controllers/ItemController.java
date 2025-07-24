@@ -6,6 +6,7 @@ import com.example.shop.models.ItemSort;
 import com.example.shop.services.CartService;
 import com.example.shop.services.ItemService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -73,16 +74,16 @@ public class ItemController {
                 });
     }
 
-    @PostMapping("/main/items/{id}")
+    @PostMapping(value = "/main/items/{id}", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public Mono<String> updateCount(
-            @PathVariable Long id,
-            @RequestParam String action,
+            @PathVariable("id") Long id,
+            @RequestParam("action") String action,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "NO") ItemSort sort,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(defaultValue = "1") int pageNumber
     ) {
-        Mono<Void> op = "plus".equals(action)
+     Mono<Void> op = "plus".equals(action)
                 ? cartService.add(id).then()
                 : cartService.remove(id).then();
 
@@ -90,6 +91,7 @@ public class ItemController {
                 String.format("redirect:/main/items?search=%s&sort=%s&pageSize=%d&pageNumber=%d",
                         search, sort, pageSize, pageNumber)
         );
+
     }
 
     @GetMapping("/items/{id}")
