@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
+<meta charset="utf-8">
 
 <head>
     <title>Витрина товаров</title>
@@ -79,11 +80,37 @@
                     </tr>
                     <tr>
                         <td>
-                            <form th:action="${'/main/items/'+item.getId()}" method="post">
-                                <button name="action" value="minus">-</button>
-                                <span th:text="${item.getCount()}"></span>
-                                <button name="action" value="plus">+</button>
-                                <button name="action" value="plus" th:if="${item.getCount()==0}" style="float:right;">В корзину</button>
+                            <form
+                                    th:action="@{/main/items/{id}(id=${item.id})}"
+                                    method="post">
+
+                                <button
+                                        type="submit"
+                                        th:formaction="@{/main/items/{id}(id=${item.id},action='minus')}">
+                                    −
+                                </button>
+
+                                <span th:text="${item.count}">0</span>
+
+                                <button
+                                        type="submit"
+                                        th:formaction="@{/main/items/{id}(id=${item.id},action='plus')}">
+                                    +
+                                </button>
+
+                                <button
+                                        type="submit"
+                                        th:if="${item.count == 0}"
+                                        th:formaction="@{/main/items/{id}(id=${item.id},action='plus')}"
+                                        style="float:right;">
+                                    В корзину
+                                </button>
+
+                                <input type="hidden" name="search"     th:value="${search}" />
+                                <input type="hidden" name="sort"       th:value="${sort}" />
+                                <input type="hidden" name="pageSize"   th:value="${pageSize}" />
+                                <input type="hidden" name="pageNumber" th:value="${pageNumber}" />
+
                             </form>
                         </td>
                     </tr>

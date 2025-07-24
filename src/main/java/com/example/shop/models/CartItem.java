@@ -1,29 +1,32 @@
 package com.example.shop.models;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 
-@Entity
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
 public class CartItem {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    private Item item;
-
-    @ManyToOne
-    @JoinColumn(name="cart_id")
-    private Cart cart;
+    /**
+     * Foreign key columns that actually get stored
+     */
+    private Long itemId;
+    private Long cartId;
 
     private int count;
 
-    public void setCart(Cart cart) { this.cart = cart; }
+    @Transient
+    private Item item;
+
+    @Transient
+    private Cart cart;
 }

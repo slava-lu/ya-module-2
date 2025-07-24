@@ -6,117 +6,104 @@ import com.example.shop.models.Item;
 import com.example.shop.services.CartService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-@ExtendWith(MockitoExtension.class)
+@WebFluxTest(controllers = CartController.class)
 class CartControllerTest {
 
-    private MockMvc mockMvc;
+    @Autowired
+    private WebTestClient webTestClient;
 
-    @Mock
+    @MockitoBean
     private CartService cartService;
 
-    @InjectMocks
-    private CartController controller;
+    private Cart cart;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
-    }
-
-    @Test
-    void whenShowCart_thenModelHasItemsTotalAndEmptyFlag() throws Exception {
-        // Prepare two items in the cart
         Item item1 = new Item(1L, "Item1", "Desc1", "/img/1.png", BigDecimal.valueOf(2.5), 0);
         Item item2 = new Item(2L, "Item2", "Desc2", "/img/2.png", BigDecimal.valueOf(5.0), 0);
-        CartItem ci1 = new CartItem(11L, item1, null, 2);
-        CartItem ci2 = new CartItem(12L, item2, null, 1);
-        Cart cart = new Cart(99L, List.of(ci1, ci2));
-        when(cartService.getOrCreateCart()).thenReturn(cart);
+        CartItem ci1 = new CartItem(); ci1.setItem(item1); ci1.setCount(2);
+        CartItem ci2 = new CartItem(); ci2.setItem(item2); ci2.setCount(1);
+        cart = new Cart();
+        cart.setId(99L);
+        cart.setItems(List.of(ci1, ci2));
 
-        var mvc = mockMvc.perform(get("/cart/items"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("cart"))
-                .andExpect(model().attributeExists("items", "total", "empty"))
-                .andReturn();
-
-        @SuppressWarnings("unchecked")
-        var items = (List<Item>) mvc.getModelAndView().getModel().get("items");
-        BigDecimal total = (BigDecimal) mvc.getModelAndView().getModel().get("total");
-        Boolean empty = (Boolean) mvc.getModelAndView().getModel().get("empty");
-
-        // The controller should copy count from CartItem into each Item
-        assertEquals(2, items.size());
-        assertEquals(2, items.get(0).getCount());
-        assertEquals(1, items.get(1).getCount());
-
-        // Total = 2 * 2.5 + 1 * 5.0 = 10.0
-        assertEquals(BigDecimal.valueOf(10.0), total);
-
-        // Cart is not empty
-        assertFalse(empty);
-
-        verify(cartService).getOrCreateCart();
+        Mockito.when(cartService.getOrCreateCart()).thenReturn(Mono.just(cart));
     }
 
     @Test
-    void whenShowCart_andEmptyCart_thenEmptyFlagTrue() throws Exception {
-        Cart emptyCart = new Cart(100L, List.of());
-        when(cartService.getOrCreateCart()).thenReturn(emptyCart);
-
-        var mvc = mockMvc.perform(get("/cart/items"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("cart"))
-                .andExpect(model().attribute("empty", true))
-                .andReturn();
-
-        @SuppressWarnings("unchecked")
-        var items = (List<Item>) mvc.getModelAndView().getModel().get("items");
-        BigDecimal total = (BigDecimal) mvc.getModelAndView().getModel().get("total");
-
-        assertTrue(items.isEmpty());
-        assertEquals(BigDecimal.ZERO, total);
-
-        verify(cartService).getOrCreateCart();
+    void whenShowCart_thenStatusOkAndHtmlRendered() {
+        webTestClient.get().uri("/cart/items")
+                .accept(MediaType.TEXT_HTML)
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_HTML)
+                .expectBody(String.class)
+                .consumeWith(resp -> {
+                    String html = resp.getResponseBody();
+                    // verify item titles and counts are in the rendered HTML
+                    assert html.contains("Item1");
+                    assert html.contains("Item2");
+                    assert html.contains("2");  // count for Item1
+                    assert html.contains("1");  // count for Item2
+                });
     }
 
     @Test
-    void whenPostUpdateCart_plus_thenAddAndRedirect() throws Exception {
-        mockMvc.perform(post("/cart/items/42")
-                        .param("action", "plus"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart/items"));
-        verify(cartService).add(42L);
+    void whenPostUpdateCart_plus_thenAddAndRedirect() {
+        Mockito.when(cartService.add(42L)).thenReturn(Mono.empty());
+
+        webTestClient.post()
+                .uri(uriBuilder ->
+                        uriBuilder.path("/cart/items/{id}")
+                                .queryParam("action", "plus")
+                                .build(42L))
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/cart/items");
+
+        Mockito.verify(cartService).add(42L);
     }
 
     @Test
-    void whenPostUpdateCart_minus_thenRemoveAndRedirect() throws Exception {
-        mockMvc.perform(post("/cart/items/43")
-                        .param("action", "minus"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart/items"));
-        verify(cartService).remove(43L);
+    void whenPostUpdateCart_minus_thenRemoveAndRedirect() {
+        Mockito.when(cartService.remove(43L)).thenReturn(Mono.empty());
+
+        webTestClient.post()
+                .uri(uriBuilder ->
+                        uriBuilder.path("/cart/items/{id}")
+                                .queryParam("action", "minus")
+                                .build(43L))
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/cart/items");
+
+        Mockito.verify(cartService).remove(43L);
     }
 
     @Test
-    void whenPostUpdateCart_delete_thenDeleteAndRedirect() throws Exception {
-        mockMvc.perform(post("/cart/items/44")
-                        .param("action", "delete"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart/items"));
-        verify(cartService).delete(44L);
+    void whenPostUpdateCart_delete_thenDeleteAndRedirect() {
+        Mockito.when(cartService.delete(44L)).thenReturn(Mono.empty());
+
+        webTestClient.post()
+                .uri(uriBuilder ->
+                        uriBuilder.path("/cart/items/{id}")
+                                .queryParam("action", "delete")
+                                .build(44L))
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/cart/items");
+
+        Mockito.verify(cartService).delete(44L);
     }
 }

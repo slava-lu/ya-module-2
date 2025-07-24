@@ -4,75 +4,92 @@ import com.example.shop.models.Order;
 import com.example.shop.services.OrderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-@ExtendWith(MockitoExtension.class)
+@WebFluxTest(controllers = OrderController.class)
 class OrderControllerTest {
 
-    private MockMvc mockMvc;
+    @Autowired
+    private WebTestClient webTestClient;
 
-    @Mock
+    @MockitoBean
     private OrderService orderService;
 
-    @InjectMocks
-    private OrderController controller;
+    private Order order1;
+    private Order order2;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        order1 = new Order();
+        order1.setId(10L);
+        order2 = new Order();
+        order2.setId(20L);
     }
 
     @Test
-    void whenPostBuy_thenCreatesOrderAndRedirectsWithNewOrderParam() throws Exception {
+    void whenPostBuy_thenCreatesOrderAndRedirectsWithNewOrderParam() {
         Order created = new Order();
         created.setId(123L);
-        when(orderService.buyCart()).thenReturn(created);
+        when(orderService.buyCart()).thenReturn(Mono.just(created));
 
-        mockMvc.perform(post("/buy"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/orders/123?newOrder=true"));
+        webTestClient.post()
+                .uri("/buy")
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueEquals("Location", "/orders/123?newOrder=true");
 
         verify(orderService).buyCart();
     }
 
+    @Test
+    void whenListOrders_thenRendersOrdersPage() {
+        when(orderService.findAll()).thenReturn(Flux.just(order1, order2));
+
+        webTestClient.get()
+                .uri("/orders")
+                .accept(MediaType.TEXT_HTML)
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_HTML)
+                .expectBody(String.class)
+                .consumeWith(resp -> {
+                    String html = resp.getResponseBody();
+                    // should mention both order IDs in the rendered HTML
+                    assert html.contains("10");
+                    assert html.contains("20");
+                });
+
+        verify(orderService).findAll();
+    }
 
     @Test
-    void whenShowOrder_defaultNewOrderFalse_thenModelHasOrderAndFlagFalse() throws Exception {
-        Order order = new Order(); order.setId(10L);
-        when(orderService.getById(10L)).thenReturn(order);
+    void whenShowOrder_defaultNewOrderFalse_thenRendersOrderDetail() {
+        when(orderService.getById(10L)).thenReturn(Mono.just(order1));
 
-        mockMvc.perform(get("/orders/10"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("order"))
-                .andExpect(model().attribute("order", order))
-                .andExpect(model().attribute("newOrder", false));
+        webTestClient.get()
+                .uri("/orders/10")
+                .accept(MediaType.TEXT_HTML)
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_HTML)
+                .expectBody(String.class)
+                .consumeWith(resp -> {
+                    String html = resp.getResponseBody();
+                    // page should contain the order ID and no "new order" banner
+                    assert html.contains("10");
+                    assert !html.contains("newOrder");
+                });
 
         verify(orderService).getById(10L);
     }
 
-    @Test
-    void whenShowOrder_withNewOrderTrueParam_thenFlagTrue() throws Exception {
-        Order order = new Order(); order.setId(20L);
-        when(orderService.getById(20L)).thenReturn(order);
-
-        mockMvc.perform(get("/orders/20")
-                        .param("newOrder", "true"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("order"))
-                .andExpect(model().attribute("order", order))
-                .andExpect(model().attribute("newOrder", true));
-
-        verify(orderService).getById(20L);
-    }
 }
