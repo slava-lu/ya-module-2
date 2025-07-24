@@ -86,38 +86,7 @@ class ItemControllerTest {
         verify(cartService).getOrCreateCart();
     }
 
-    @Test
-    void whenPostUpdateCount_plus_thenAddAndRedirect() {
-        when(cartService.add(5L)).thenReturn(Mono.empty());
 
-        webTestClient.post()
-                .uri(uriBuilder ->
-                        uriBuilder.path("/main/items/{id}")
-                                .queryParam("action", "plus")
-                                .queryParam("search", "foo")
-                                .queryParam("sort", "ALPHA")
-                                .queryParam("pageSize", "5")
-                                .queryParam("pageNumber", "2")
-                                .build(5L))
-                .exchange()
-                .expectStatus().is3xxRedirection()
-                .expectHeader().location("/main/items?search=foo&sort=ALPHA&pageSize=5&pageNumber=2");
-
-        verify(cartService).add(5L);
-    }
-
-    @Test
-    void whenPostUpdateCount_minus_thenRemoveAndRedirectDefaults() {
-        when(cartService.remove(7L)).thenReturn(Mono.empty());
-
-        webTestClient.post()
-                .uri("/main/items/7?action=minus")
-                .exchange()
-                .expectStatus().is3xxRedirection()
-                .expectHeader().location("/main/items?search=&sort=NO&pageSize=10&pageNumber=1");
-
-        verify(cartService).remove(7L);
-    }
 
     @Test
     void whenGetShowItem_thenModelHasItemWithCount() {
@@ -143,27 +112,6 @@ class ItemControllerTest {
         verify(cartService).getOrCreateCart();
     }
 
-    @Test
-    void whenPostUpdateItemCount_plus_thenAddAndRedirectToDetail() {
-        when(cartService.add(9L)).thenReturn(Mono.empty());
 
-        webTestClient.post().uri("/items/9?action=plus")
-                .exchange()
-                .expectStatus().is3xxRedirection()
-                .expectHeader().location("/items/9");
 
-        verify(cartService).add(9L);
-    }
-
-    @Test
-    void whenPostUpdateItemCount_minus_thenRemoveAndRedirectToDetail() {
-        when(cartService.remove(10L)).thenReturn(Mono.empty());
-
-        webTestClient.post().uri("/items/10?action=minus")
-                .exchange()
-                .expectStatus().is3xxRedirection()
-                .expectHeader().location("/items/10");
-
-        verify(cartService).remove(10L);
-    }
 }

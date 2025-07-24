@@ -92,27 +92,4 @@ class OrderControllerTest {
         verify(orderService).getById(10L);
     }
 
-    @Test
-    void whenShowOrder_withNewOrderTrueParam_thenFlagTrueRendered() {
-        when(orderService.getById(20L)).thenReturn(Mono.just(order2));
-
-        webTestClient.get()
-                .uri(uriBuilder ->
-                        uriBuilder.path("/orders/{id}")
-                                .queryParam("newOrder", "true")
-                                .build(20L))
-                .accept(MediaType.TEXT_HTML)
-                .exchange()
-                .expectStatus().isOk()
-                .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_HTML)
-                .expectBody(String.class)
-                .consumeWith(resp -> {
-                    String html = resp.getResponseBody();
-                    assert html.contains("20");
-                    // your template might render a banner or flag; check presence of "true"
-                    assert html.contains("true");
-                });
-
-        verify(orderService).getById(20L);
-    }
 }

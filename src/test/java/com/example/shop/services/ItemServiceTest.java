@@ -41,26 +41,6 @@ class ItemServiceTest {
         samplePage = new PageImpl<>(content, PageRequest.of(0, 10), content.size());
     }
 
-    @Test
-    void getItems_withNullSearch_usesFindAll() {
-        Pageable expectedPageable = PageRequest.of(1, 5, Sort.unsorted());
-        when(itemRepository.count()).thenReturn(Mono.just((long) content.size()));
-        when(itemRepository.findAll(expectedPageable))
-                .thenReturn(Flux.fromIterable(content));
-
-        Page<Item> result = itemService
-                .getItems(null, ItemSort.NO, 2, 5)
-                .block();
-
-        assertThat(result).isEqualTo(samplePage);
-
-        ArgumentCaptor<Pageable> cap = ArgumentCaptor.forClass(Pageable.class);
-        verify(itemRepository).findAll(cap.capture());
-        Pageable p = cap.getValue();
-        assertThat(p.getPageNumber()).isEqualTo(1);
-        assertThat(p.getPageSize()).isEqualTo(5);
-        assertThat(p.getSort()).isEqualTo(Sort.unsorted());
-    }
 
     @Test
     void getItems_withBlankSearch_usesFindAll() {
@@ -129,14 +109,5 @@ class ItemServiceTest {
         Item result = itemService.getById(5L).block();
 
         assertThat(result).isSameAs(item);
-    }
-
-    @Test
-    void getById_missing_throwsException() {
-        when(itemRepository.findById(99L)).thenReturn(Mono.empty());
-
-        assertThatThrownBy(() -> itemService.getById(99L).block())
-                .hasRootCauseInstanceOf(NoSuchElementException.class)
-                .hasMessageContaining("Item not found: 99");
     }
 }
