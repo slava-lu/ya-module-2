@@ -17,18 +17,19 @@ import java.util.NoSuchElementException;
 @RequiredArgsConstructor
 public class OrderService {
 
-    private final OrderRepository orderRepo;
-    private final OrderItemRepository orderItemRepo;
-    private final CartService cartService;
-    private final CartItemRepository cartItemRepo;
+    private final OrderRepository       orderRepo;
+    private final OrderItemRepository   orderItemRepo;
+    private final CartService           cartService;
+    private final CartItemRepository    cartItemRepo;
+
     public Mono<Order> buyCart() {
         return cartService.getOrCreateCart()
                 .flatMap(cart -> {
-
                     Order order = new Order();
                     for (CartItem ci : cart.getItems()) {
                         OrderItem oi = new OrderItem();
                         oi.setItemId(ci.getItemId());
+                        oi.setItem(ci.getItem());
                         oi.setCount(ci.getCount());
                         order.getItems().add(oi);
                     }
@@ -42,6 +43,7 @@ public class OrderService {
                                             .then()
                                             .thenReturn(savedOrder)
                             )
+
                             .flatMap(savedOrder ->
                                     cartItemRepo.findByCartId(cart.getId())
                                             .flatMap(cartItemRepo::delete)
@@ -53,25 +55,11 @@ public class OrderService {
 
 
     public Flux<Order> findAll() {
-        return orderRepo.findAll()
-                .flatMap(this::loadOrder);
+        return orderRepo.findAll();
     }
 
     public Mono<Order> getById(Long id) {
         return orderRepo.findById(id)
-                .switchIfEmpty(Mono.error(new NoSuchElementException("Order not found: " + id)))
-                .flatMap(this::loadOrder);
-    }
-
-    private Mono<Order> loadOrder(Order order) {
-        return orderItemRepo.findByOrderId(order.getId())
-                .flatMap(oi ->
-                        cartService
-                                .getOrCreateCart()
-                                .thenReturn(oi)
-                )
-                .collectList()
-                .doOnNext(order::setItems)
-                .thenReturn(order);
+                .switchIfEmpty(Mono.error(new NoSuchElementException("Order not found: " + id)));
     }
 }

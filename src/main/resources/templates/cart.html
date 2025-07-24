@@ -34,11 +34,29 @@
                 <tr><td th:text="${item.getDescription()}"></td></tr>
                 <tr>
                     <td>
-                        <form th:action="${'/cart/items/'+item.getId()}" method="post">
-                            <button name="action" value="minus">-</button>
-                            <span th:text="${item.getCount()}"></span>
-                            <button name="action" value="plus">+</button>
-                            <button name="action" value="delete" style="float:right;">&cross;</button>
+                        <form
+                                th:action="@{/cart/items/{id}(id=${item.id})}"
+                                method="post">
+
+                            <button
+                                    type="submit"
+                                    th:formaction="@{/cart/items/{id}(id=${item.id},action='minus')}">
+                                −
+                            </button>
+
+                            <span th:text="${item.count}">0</span>
+
+                            <button
+                                    type="submit"
+                                    th:formaction="@{/cart/items/{id}(id=${item.id},action='plus')}">
+                                +
+                            </button>
+                            <button
+                                    type="submit"
+                                    th:formaction="@{/cart/items/{id}(id=${item.id},action='delete')}"
+                                    style="float:right;">
+                                &times;
+                            </button>
                         </form>
                     </td>
                 </tr>
