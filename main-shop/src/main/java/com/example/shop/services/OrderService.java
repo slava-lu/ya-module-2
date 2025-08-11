@@ -21,6 +21,7 @@ public class OrderService {
     private final OrderItemRepository   orderItemRepo;
     private final CartService           cartService;
     private final CartItemRepository    cartItemRepo;
+    private final PaymentServiceClient paymentServiceClient;
 
     public Mono<Order> buyCart() {
         return cartService.getOrCreateCart()
@@ -35,24 +36,29 @@ public class OrderService {
                     }
                     order.computeTotal();
 
-                    return orderRepo.save(order)
-                            .flatMap(savedOrder ->
-                                    Flux.fromIterable(order.getItems())
-                                            .doOnNext(oi -> oi.setOrderId(savedOrder.getId()))
-                                            .flatMap(orderItemRepo::save)
-                                            .then()
-                                            .thenReturn(savedOrder)
-                            )
-
-                            .flatMap(savedOrder ->
-                                    cartItemRepo.findByCartId(cart.getId())
-                                            .flatMap(cartItemRepo::delete)
-                                            .then()
-                                            .thenReturn(savedOrder)
-                            );
+                    // Call payment service first
+                    return paymentServiceClient.pay(order.getTotal())
+                            .flatMap(paymentResponse -> {
+                                // If payment succeeded → proceed with saving
+                                return orderRepo.save(order)
+                                        .flatMap(savedOrder ->
+                                                Flux.fromIterable(order.getItems())
+                                                        .doOnNext(oi -> oi.setOrderId(savedOrder.getId()))
+                                                        .flatMap(orderItemRepo::save)
+                                                        .then()
+                                                        .thenReturn(savedOrder)
+                                        )
+                                        .flatMap(savedOrder ->
+                                                cartItemRepo.findByCartId(cart.getId())
+                                                        .flatMap(cartItemRepo::delete)
+                                                        .then()
+                                                        .thenReturn(savedOrder)
+                                        );
+                            })
+                            .onErrorResume(e -> Mono.error(new IllegalStateException(
+                                    "Payment declined. Reason: " + e.getMessage())));
                 });
     }
-
 
     public Flux<Order> findAll() {
         return orderRepo.findAll();

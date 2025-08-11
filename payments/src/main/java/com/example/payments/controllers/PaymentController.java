@@ -2,6 +2,8 @@ package com.example.payments.controllers;
 
 import com.example.payments.services.PaymentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -20,8 +22,15 @@ public class PaymentController {
     }
 
     @PostMapping("/pay")
-    public Mono<String> processPayment(@RequestParam BigDecimal amount) {
-        return paymentService.processPayment(amount)
-                .onErrorResume(e -> Mono.just("Payment failed: " + e.getMessage()));
+    public Mono<ResponseEntity<PaymentResponse>> processPayment(@RequestBody PaymentRequest body) {
+        return paymentService.processPayment(body.amount())
+                .map(msg -> ResponseEntity.ok(new PaymentResponse(msg)))
+                .onErrorResume(IllegalArgumentException.class, e ->
+                        Mono.just(ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
+                                .body(new PaymentResponse("Payment failed: " + e.getMessage()))));
     }
+
+    // Inline DTOs
+    public record PaymentRequest(BigDecimal amount) {}
+    public record PaymentResponse(String message) {}
 }
