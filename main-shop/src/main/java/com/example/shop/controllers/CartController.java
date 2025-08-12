@@ -20,22 +20,15 @@ public class CartController {
 
     @GetMapping
     public Mono<Rendering> showCart() {
-        return cartService.getOrCreateCart()
-                .map(cart -> {
-                    List<Item> items = cart.getItems().stream()
-                            .map(ci -> {
-                                Item item = ci.getItem();
-                                item.setCount(ci.getCount());  // count is @Transient on Item
-                                return item;
-                            })
-                            .collect(Collectors.toList());
-
-                    return Rendering.view("cart")
-                            .modelAttribute("items", items)
-                            .modelAttribute("total", cart.getTotal())
-                            .modelAttribute("empty", cart.isEmpty())
-                            .build();
-                });
+        return cartService.buildCartPageData()
+                .map(vm -> Rendering.view("cart")
+                        .modelAttribute("items", vm.items())
+                        .modelAttribute("total", vm.total())
+                        .modelAttribute("empty", vm.empty())
+                        .modelAttribute("balance", vm.balance())
+                        .modelAttribute("disableBuy", vm.disableBuy())
+                        .build()
+                );
     }
 
     @PostMapping("/{id}")

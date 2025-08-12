@@ -14,6 +14,16 @@ public class PaymentServiceClient {
 
     private final WebClient paymentWebClient;
 
+    public Mono<BigDecimal> getBalance() {
+        return paymentWebClient.get()
+                .uri("/payments/balance")
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, resp ->
+                        resp.bodyToMono(String.class)
+                                .flatMap(msg -> Mono.error(new IllegalStateException("Balance call failed: " + msg))))
+                .bodyToMono(BigDecimal.class);
+    }
+
     public Mono<String> pay(BigDecimal amount) {
         return paymentWebClient.post()
                 .uri("/payments/pay")

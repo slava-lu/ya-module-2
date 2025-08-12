@@ -71,8 +71,11 @@
     <tr>
         <td style="text-align:right">
             <form action="/buy" method="post" th:if="${!empty}">
-                <button>Купить</button>
+                <button th:disabled="${disableBuy}">Купить</button>
             </form>
+            <p th:if="${disableBuy}" style="color:red;">
+                Недостаточно средств: баланс [[${balance}]] руб., сумма корзины [[${total}]] руб.
+            </p>
         </td>
     </tr>
 </table>
