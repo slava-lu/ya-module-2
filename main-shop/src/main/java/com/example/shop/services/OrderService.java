@@ -36,10 +36,8 @@ public class OrderService {
                     }
                     order.computeTotal();
 
-                    // Call payment service first
                     return paymentServiceClient.pay(order.getTotal())
                             .flatMap(paymentResponse -> {
-                                // If payment succeeded → proceed with saving
                                 return orderRepo.save(order)
                                         .flatMap(savedOrder ->
                                                 Flux.fromIterable(order.getItems())
