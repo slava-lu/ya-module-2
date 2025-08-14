@@ -19,13 +19,7 @@
     <packaging>jar</packaging>
     <name>payments</name>
     <description>Payments processing module</description>
-
     <dependencies>
-        <!-- Only Redis support -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
     </dependencies>
 
 </project>
