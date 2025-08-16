@@ -1,9 +1,10 @@
 package com.example.shop.services;
 
+import com.example.payments.client.api.PaymentsApi;
+import com.example.payments.client.model.PaymentRequest;
+import com.example.payments.client.model.PaymentResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
@@ -12,33 +13,15 @@ import java.math.BigDecimal;
 @RequiredArgsConstructor
 public class PaymentServiceClient {
 
-    private final WebClient paymentWebClient;
+    private final PaymentsApi paymentsApi;
 
     public Mono<BigDecimal> getBalance() {
-        return paymentWebClient.get()
-                .uri("/payments/balance")
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, resp ->
-                        resp.bodyToMono(String.class)
-                                .flatMap(msg -> Mono.error(new IllegalStateException("Balance call failed: " + msg))))
-                .bodyToMono(BigDecimal.class);
+        return paymentsApi.getBalance();
     }
 
     public Mono<String> pay(BigDecimal amount) {
-        return paymentWebClient.post()
-                .uri("/payments/pay")
-                .bodyValue(new PaymentRequest(amount))
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, resp ->
-                        resp.bodyToMono(PaymentResponse.class)
-                                .defaultIfEmpty(new PaymentResponse("Payment failed"))
-                                .flatMap(err -> Mono.error(new IllegalStateException(err.message())))
-                )
-                .bodyToMono(PaymentResponse.class)
-                .map(PaymentResponse::message);
+        return paymentsApi
+                .processPayment(new PaymentRequest().amount(amount))
+                .map(PaymentResponse::getMessage);
     }
-
-
-    public record PaymentRequest(BigDecimal amount) {}
-    public record PaymentResponse(String message) {}
 }

@@ -1,17 +1,18 @@
 package com.example.shop.config;
 
+import com.example.payments.client.api.PaymentsApi;
+import com.example.payments.client.invoker.ApiClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
 public class PaymentClientConfig {
 
-    @Bean("paymentWebClient")
-    public WebClient paymentWebClient(@Value("${payment.service.base-url}") String baseUrl) {
-        return WebClient.builder()
-                .baseUrl(baseUrl)
-                .build();
+    @Bean
+    public PaymentsApi paymentsApi(@Value("${payment.service.base-url}") String baseUrl) {
+        ApiClient client = new ApiClient();
+        client.setBasePath(baseUrl);
+        return new PaymentsApi(client);
     }
 }

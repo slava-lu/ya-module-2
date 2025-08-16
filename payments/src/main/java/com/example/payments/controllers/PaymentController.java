@@ -1,36 +1,36 @@
 package com.example.payments.controllers;
 
+import com.example.payments.api.PaymentsApi;
+import com.example.payments.api.model.PaymentRequest;
+import com.example.payments.api.model.PaymentResponse;
 import com.example.payments.services.PaymentService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 
-@RequiredArgsConstructor
 @RestController
-@RequestMapping("/payments")
-public class PaymentController {
+@RequiredArgsConstructor
+public class PaymentController implements PaymentsApi {
 
     private final PaymentService paymentService;
 
-    @GetMapping("/balance")
-    public Mono<BigDecimal> getBalance() {
-        return paymentService.getBalance();
+    @Override
+    public Mono<ResponseEntity<BigDecimal>> getBalance(ServerWebExchange exchange) {
+        return paymentService.getBalance()
+                .map(ResponseEntity::ok);
     }
 
-    @PostMapping("/pay")
-    public Mono<ResponseEntity<PaymentResponse>> processPayment(@RequestBody PaymentRequest body) {
-        return paymentService.processPayment(body.amount())
-                .map(msg -> ResponseEntity.ok(new PaymentResponse(msg)))
-                .onErrorResume(IllegalArgumentException.class, e ->
-                        Mono.just(ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
-                                .body(new PaymentResponse("Payment failed: " + e.getMessage()))));
-    }
+    @Override
+    public Mono<ResponseEntity<PaymentResponse>> processPayment(
+            Mono<PaymentRequest> paymentRequest,
+            ServerWebExchange exchange) {
 
-    // Inline DTOs
-    public record PaymentRequest(BigDecimal amount) {}
-    public record PaymentResponse(String message) {}
+        return paymentRequest
+                .flatMap(req -> paymentService.processPayment(req.getAmount()))
+                .map(result -> ResponseEntity.ok(new PaymentResponse().message(result)));
+    }
 }
