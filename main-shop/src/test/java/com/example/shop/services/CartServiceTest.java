@@ -28,11 +28,15 @@ class CartServiceTest {
     @Mock
     private ItemRepository itemRepo;
 
+    @Mock
+    private PaymentServiceClient paymentClient;
+
+
     private CartService service;
 
     @BeforeEach
     void setUp() {
-        service = new CartService(cartRepo, cartItemRepo, itemRepo);
+        service = new CartService(cartRepo, cartItemRepo, itemRepo, paymentClient);
     }
 
     @Test

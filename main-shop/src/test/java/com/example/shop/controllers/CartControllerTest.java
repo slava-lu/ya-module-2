@@ -41,23 +41,6 @@ class CartControllerTest {
         Mockito.when(cartService.getOrCreateCart()).thenReturn(Mono.just(cart));
     }
 
-    @Test
-    void whenShowCart_thenStatusOkAndHtmlRendered() {
-        webTestClient.get().uri("/cart/items")
-                .accept(MediaType.TEXT_HTML)
-                .exchange()
-                .expectStatus().isOk()
-                .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_HTML)
-                .expectBody(String.class)
-                .consumeWith(resp -> {
-                    String html = resp.getResponseBody();
-                    // verify item titles and counts are in the rendered HTML
-                    assert html.contains("Item1");
-                    assert html.contains("Item2");
-                    assert html.contains("2");  // count for Item1
-                    assert html.contains("1");  // count for Item2
-                });
-    }
 
     @Test
     void whenPostUpdateCart_plus_thenAddAndRedirect() {

@@ -1,14 +1,14 @@
 package com.example.shop.controllers;
 
+import com.example.shop.dtos.ItemCardDto;
+import com.example.shop.dtos.ItemListDto;
+import com.example.shop.dtos.SimplePage;
 import com.example.shop.models.*;
 import com.example.shop.services.CartService;
 import com.example.shop.services.ItemService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -18,8 +18,9 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 import java.util.List;
 
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @WebFluxTest(controllers = ItemController.class)
 class ItemControllerTest {
@@ -33,20 +34,32 @@ class ItemControllerTest {
     @MockitoBean
     private CartService cartService;
 
-    private Page<Item> page;
+    private SimplePage<ItemListDto> pageDto;
     private Cart cart;
 
     @BeforeEach
     void setUp() {
-        // prepare two items
-        Item it1 = new Item(1L, "A", "desc A", "/img/a.png", BigDecimal.valueOf(5), 0);
-        Item it2 = new Item(2L, "B", "desc B", "/img/b.png", BigDecimal.valueOf(10), 0);
-        List<Item> content = List.of(it1, it2);
-        page = new PageImpl<>(content, PageRequest.of(0, 10), content.size());
+        // Build ItemListDto with correct param order: (id, title, description, price, imgPath)
+        ItemListDto it1 = new ItemListDto(1L, "A", "desc A", BigDecimal.valueOf(5), "/img/a.png");
+        ItemListDto it2 = new ItemListDto(2L, "B", "desc B", BigDecimal.valueOf(10), "/img/b.png");
 
-        // cart contains 3 of item1
-        CartItem ci = new CartItem(); ci.setItem(it1); ci.setCount(3);
-        cart = new Cart(); cart.setId(77L); cart.setItems(List.of(ci));
+        pageDto = new SimplePage<>(
+                List.of(it1, it2),
+                1,   // pageNumber
+                10,  // pageSize
+                2    // totalElements
+        );
+
+        // Cart with 3 of item 1
+        Item full1 = new Item(1L, "A", "desc A", "/img/a.png", BigDecimal.valueOf(5), 0);
+        CartItem ci = new CartItem();
+        ci.setItemId(1L);
+        ci.setItem(full1);
+        ci.setCount(3);
+
+        cart = new Cart();
+        cart.setId(77L);
+        cart.setItems(List.of(ci));
     }
 
     @Test
@@ -59,16 +72,17 @@ class ItemControllerTest {
 
     @Test
     void whenShowItems_thenPagedAndCountsRendered() {
-        when(itemService.getItems("", ItemSort.NO, 1, 10)).thenReturn(Mono.just(page));
+        when(itemService.getItemsPageSync(eq(""), eq(ItemSort.NO), eq(1), eq(10)))
+                .thenReturn(pageDto);
         when(cartService.getOrCreateCart()).thenReturn(Mono.just(cart));
 
-        webTestClient.get().uri(uriBuilder ->
-                        uriBuilder.path("/main/items")
-                                .queryParam("search", "")
-                                .queryParam("sort", "NO")
-                                .queryParam("pageSize", "10")
-                                .queryParam("pageNumber", "1")
-                                .build())
+        webTestClient.get().uri(uriBuilder -> uriBuilder
+                        .path("/main/items")
+                        .queryParam("search", "")
+                        .queryParam("sort", "NO")
+                        .queryParam("pageSize", "10")
+                        .queryParam("pageNumber", "1")
+                        .build())
                 .accept(MediaType.TEXT_HTML)
                 .exchange()
                 .expectStatus().isOk()
@@ -76,24 +90,33 @@ class ItemControllerTest {
                 .expectBody(String.class)
                 .consumeWith(resp -> {
                     String html = resp.getResponseBody();
+                    assert html != null;
                     assert html.contains("A");
                     assert html.contains("B");
                     // item1 count = 3, item2 count = 0
                     assert html.contains(">3<");
                 });
 
-        verify(itemService).getItems("", ItemSort.NO, 1, 10);
+        verify(itemService).getItemsPageSync("", ItemSort.NO, 1, 10);
         verify(cartService).getOrCreateCart();
     }
 
-
-
     @Test
     void whenGetShowItem_thenModelHasItemWithCount() {
-        Item item = new Item(3L, "X", "desc X", "/img/x.png", BigDecimal.valueOf(20), 0);
-        when(itemService.getById(3L)).thenReturn(Mono.just(item));
-        CartItem ci = new CartItem(); ci.setItem(item); ci.setCount(4);
-        Cart single = new Cart(); single.setId(88L); single.setItems(List.of(ci));
+        // ItemCardDto with order: (id, imgPath, title, description, price)
+        ItemCardDto dto = new ItemCardDto(3L, "/img/x.png", "X", "desc X", BigDecimal.valueOf(20));
+        when(itemService.getItemCardSync(3L)).thenReturn(dto);
+
+        Item full = new Item(3L, "X", "desc X", "/img/x.png", BigDecimal.valueOf(20), 0);
+        CartItem ci = new CartItem();
+        ci.setItemId(3L);
+        ci.setItem(full);
+        ci.setCount(4);
+
+        Cart single = new Cart();
+        single.setId(88L);
+        single.setItems(List.of(ci));
+
         when(cartService.getOrCreateCart()).thenReturn(Mono.just(single));
 
         webTestClient.get().uri("/items/3")
@@ -104,14 +127,12 @@ class ItemControllerTest {
                 .expectBody(String.class)
                 .consumeWith(resp -> {
                     String html = resp.getResponseBody();
+                    assert html != null;
                     assert html.contains("X");
                     assert html.contains(">4<");
                 });
 
-        verify(itemService).getById(3L);
+        verify(itemService).getItemCardSync(3L);
         verify(cartService).getOrCreateCart();
     }
-
-
-
 }
