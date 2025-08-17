@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project
+        xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.example</groupId>
+        <artifactId>shop-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>payments</artifactId>
+    <packaging>jar</packaging>
+    <name>payments</name>
+    <description>Payments processing module</description>
+
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-payment-server</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>generate</goal></goals>
+                        <configuration>
+
+                            <inputSpec>${project.basedir}/src/main/openapi/payment-server.yaml</inputSpec>
+
+                            <generatorName>spring</generatorName>
+                            <library>spring-boot</library>
+
+                            <apiPackage>com.example.payments.api</apiPackage>
+                            <modelPackage>com.example.payments.api.model</modelPackage>
+                            <invokerPackage>com.example.payments.api.invoker</invokerPackage>
+
+                            <configOptions>
+                                <useSpringBoot3>true</useSpringBoot3>
+                                <reactive>true</reactive>
+                                <useBigDecimal>true</useBigDecimal>
+                                <interfaceOnly>true</interfaceOnly>
+                                <useBeanValidation>true</useBeanValidation>
+                                <useSwaggerAnnotations>true</useSwaggerAnnotations>
+                                <openApiNullable>true</openApiNullable>
+                                <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                                <generateApiTests>false</generateApiTests>
+                                <generateModelTests>false</generateModelTests>
+                            </configOptions>
+
+                            <generateApiDocumentation>false</generateApiDocumentation>
+                            <generateModelDocumentation>false</generateModelDocumentation>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

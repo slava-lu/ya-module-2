@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project
+        xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.example</groupId>
+        <artifactId>shop-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>main-shop</artifactId>
+    <name>main-shop</name>
+    <description>Reactive Internet Shop (main module)</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-r2dbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.r2dbc</groupId>
+            <artifactId>r2dbc-h2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.openapitools</groupId>
+            <artifactId>jackson-databind-nullable</artifactId>
+            <version>0.2.6</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+
+                <executions>
+                    <execution>
+                        <id>generate-payment-client</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>generate</goal></goals>
+                        <configuration>
+
+                            <inputSpec>${project.basedir}/src/main/openapi/payment-client.yaml</inputSpec>
+
+                            <generatorName>java</generatorName>
+                            <library>webclient</library>
+
+                            <apiPackage>com.example.payments.client.api</apiPackage>
+                            <modelPackage>com.example.payments.client.model</modelPackage>
+                            <invokerPackage>com.example.payments.client.invoker</invokerPackage>
+
+                            <configOptions>
+                                <reactive>true</reactive>
+                                <useBigDecimal>true</useBigDecimal>
+                                <useJakartaEe>true</useJakartaEe>
+                                <useBeanValidation>true</useBeanValidation>
+                                <useSwaggerAnnotations>true</useSwaggerAnnotations>
+                                <openApiNullable>true</openApiNullable>
+                                <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                                <generateApiTests>false</generateApiTests>
+                                <generateModelTests>false</generateModelTests>
+                            </configOptions>
+
+                            <generateApiDocumentation>false</generateApiDocumentation>
+                            <generateModelDocumentation>false</generateModelDocumentation>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

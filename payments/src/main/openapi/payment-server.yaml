@@ -1,0 +1,65 @@
+openapi: 3.0.3
+info:
+  title: Payments API
+  version: 1.0.0
+
+paths:
+  /payments/balance:
+    get:
+      summary: Get current balance
+      tags:
+        - Payments
+      operationId: getBalance
+      responses:
+        '200':
+          description: Current balance
+          content:
+            application/json:
+              schema:
+                type: number
+                format: BigDecimal
+
+  /payments/pay:
+    post:
+      summary: Process a payment
+      tags:
+        - Payments
+      operationId: processPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '200':
+          description: Payment successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '402':
+          description: Payment failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+components:
+  schemas:
+    PaymentRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: BigDecimal
+      required:
+        - amount
+
+    PaymentResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
