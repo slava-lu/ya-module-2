@@ -8,6 +8,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface ItemRepository extends R2dbcRepository<Item, Long> {
+
     Flux<Item> findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(
             String title,
             String description,
@@ -17,6 +18,12 @@ public interface ItemRepository extends R2dbcRepository<Item, Long> {
     Mono<Long> countByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(
             String title,
             String description
+    );
+
+    Flux<Item> findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(
+            String title,
+            String description,
+            Sort sort
     );
 
     default Flux<Item> findAll(Pageable pageable) {

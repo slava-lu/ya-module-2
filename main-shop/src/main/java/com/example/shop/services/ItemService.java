@@ -75,25 +75,22 @@ public class ItemService {
     }
 
     @Cacheable(
-            value = "itemListPages",
-            key = "T(java.util.Objects).hash((#search==null?'':#search.trim().toLowerCase())) + ',' + #sort.name() + ',' + #pageNumber + ',' + #pageSize"
+            value = "itemListIndex",
+            key = "T(java.util.Objects).hash((#search==null?'':#search.trim().toLowerCase())) + ',' + #sort.name()"
     )
-    public SimplePage<ItemListDto> getItemsPageSync(String search, ItemSort sort, int pageNumber, int pageSize) {
-        var pageable = PageRequest.of(pageNumber - 1, pageSize, resolveSort(sort));
+    public List<ItemListDto> getItemsIndexSync(String search, ItemSort sort) {
+        var sortSpec = resolveSort(sort);
 
         List<Item> items;
-        long total;
-
         if (search == null || search.isBlank()) {
-            total = itemRepository.count().block();
-            items = itemRepository.findAll(pageable).collectList().block();
+            items = itemRepository.findAll(sortSpec).collectList().block();
         } else {
-            total = itemRepository.countByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(search, search).block();
-            items = itemRepository.findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(search, search, pageable)
+            items = itemRepository
+                    .findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(search, search, sortSpec)
                     .collectList().block();
         }
 
-        var content = items.stream()
+        return items.stream()
                 .map(it -> new ItemListDto(
                         it.getId(),
                         it.getTitle(),
@@ -102,6 +99,15 @@ public class ItemService {
                         it.getImgPath()
                 ))
                 .toList();
+    }
+
+    public SimplePage<ItemListDto> getItemsPageSync(String search, ItemSort sort, int pageNumber, int pageSize) {
+        List<ItemListDto> index = getItemsIndexSync(search, sort); // served from cache
+        long total = index.size();
+
+        int from = Math.max(0, Math.min((pageNumber - 1) * pageSize, index.size()));
+        int to = Math.max(from, Math.min(from + pageSize, index.size()));
+        List<ItemListDto> content = index.subList(from, to);
 
         return new SimplePage<>(content, pageNumber, pageSize, total);
     }
