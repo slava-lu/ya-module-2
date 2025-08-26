@@ -26,7 +26,7 @@ public class ItemController {
     private final ItemService itemService;
     private final CartService cartService;
 
-    @GetMapping("/")
+  @GetMapping("/")
     public String redirectToMainItems() {
         return "redirect:/main/items";
     }
