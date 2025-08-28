@@ -3,6 +3,10 @@ info:
   title: Payments API
   version: 1.0.0
 
+
+security:
+  - cookieAuth: []
+
 paths:
   /payments/balance:
     get:
@@ -18,6 +22,8 @@ paths:
               schema:
                 type: number
                 format: BigDecimal
+        '401':
+          description: Unauthorized
 
   /payments/pay:
     post:
@@ -44,6 +50,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaymentResponse'
+        '401':
+          description: Unauthorized
 
 components:
   schemas:
@@ -63,3 +71,9 @@ components:
           type: string
       required:
         - message
+
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID

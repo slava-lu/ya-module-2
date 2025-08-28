@@ -12,6 +12,5 @@ import java.math.BigDecimal;
 @Component
 @ConfigurationProperties(prefix = "payment.account")
 public class PaymentAccountProperties {
-    private String id;
     private BigDecimal initialBalance;
 }

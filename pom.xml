@@ -29,6 +29,7 @@
 	<modules>
 		<module>main-shop</module>
 		<module>payments</module>
+		<module>auth-server</module>
 	</modules>
 
 	<dependencies>

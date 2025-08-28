@@ -26,6 +26,7 @@ public class SecurityConfig {
                         .pathMatchers("/images/**", "/css/**").permitAll()
                         .anyExchange().authenticated()
                 )
+
                 .formLogin(Customizer.withDefaults())
                 .logout(logout -> logout
                         .logoutUrl("/logout")

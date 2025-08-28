@@ -3,11 +3,15 @@ package com.example.shop.services;
 import com.example.shop.models.Cart;
 import com.example.shop.models.CartItem;
 import com.example.shop.models.Item;
+import com.example.shop.models.User;
 import com.example.shop.repositories.CartItemRepository;
 import com.example.shop.repositories.CartRepository;
 import com.example.shop.repositories.ItemRepository;
+import com.example.shop.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
@@ -21,73 +25,85 @@ public class CartService {
     private final CartRepository cartRepo;
     private final CartItemRepository cartItemRepo;
     private final ItemRepository itemRepo;
+    private final UserRepository userRepo; // Add UserRepository
     private final PaymentServiceClient paymentClient;
 
-    private Long demoCartId = null;
-
-    public Mono<Cart> getOrCreateCart() {
-        if (demoCartId != null) {
-            return loadCart(demoCartId)
-                    .switchIfEmpty(Mono.error(new IllegalStateException("Demo cart was deleted")));
-        }
-        return cartRepo.save(new Cart())
-                .doOnNext(saved -> demoCartId = saved.getId())
-                .flatMap(saved -> loadCart(saved.getId()));
+    // Helper method to get the current application user
+    private Mono<User> getCurrentUser(UserDetails userDetails) {
+        return userRepo.findByEmail(userDetails.getUsername());
     }
 
-    public Mono<Cart> add(Long itemId) { return getOrCreateCart()
-            .flatMap(cart -> {
-                Long cid = cart.getId();
-                return itemRepo.findById(itemId)
-                        .switchIfEmpty(Mono.error(new IllegalArgumentException("No item " + itemId)))
-                        .flatMap(item ->
-                                cartItemRepo.findByCartId(cid)
-                                        .filter(ci -> ci.getItemId().equals(itemId))
-                                        .next()
-                                        .flatMap(existing -> {
-                                            existing.setCount(existing.getCount() + 1);
-                                            return cartItemRepo.save(existing);
-                                        })
-                                        .switchIfEmpty(Mono.defer(() -> {
-                                            CartItem ci = new CartItem();
-                                            ci.setCartId(cid);
-                                            ci.setItemId(itemId);
-                                            ci.setCount(1);
-                                            return cartItemRepo.save(ci);
-                                        }))
-                        )
-                        .thenReturn(cid);
-            })
-            .flatMap(this::loadCart);
+    public Mono<Cart> getOrCreateCart(UserDetails userDetails) {
+        return getCurrentUser(userDetails)
+                .flatMap(user -> cartRepo.findByUserId(user.getId())
+                        .switchIfEmpty(Mono.defer(() -> {
+                            Cart newCart = new Cart();
+                            newCart.setUserId(user.getId());
+                            return cartRepo.save(newCart);
+                        }))
+                )
+                .flatMap(cart -> loadCart(cart.getId()));
     }
 
-    public Mono<Cart> remove(Long itemId) { return getOrCreateCart()
-            .flatMap(cart -> {
-                Long cid = cart.getId();
-                return cartItemRepo.findByCartId(cid)
-                        .filter(ci -> ci.getItemId().equals(itemId))
-                        .next()
-                        .flatMap(ci -> {
-                            if (ci.getCount() > 1) {
-                                ci.setCount(ci.getCount() - 1);
-                                return cartItemRepo.save(ci).thenReturn(cid);
-                            } else {
-                                return cartItemRepo.delete(ci).thenReturn(cid);
-                            }
-                        });
-            })
-            .flatMap(this::loadCart);
+    @Transactional
+    public Mono<Cart> add(Long itemId, UserDetails userDetails) {
+        return getOrCreateCart(userDetails)
+                .flatMap(cart -> {
+                    Long cid = cart.getId();
+                    return itemRepo.findById(itemId)
+                            .switchIfEmpty(Mono.error(new IllegalArgumentException("No item " + itemId)))
+                            .flatMap(item ->
+                                    cartItemRepo.findByCartId(cid)
+                                            .filter(ci -> ci.getItemId().equals(itemId))
+                                            .next()
+                                            .flatMap(existing -> {
+                                                existing.setCount(existing.getCount() + 1);
+                                                return cartItemRepo.save(existing);
+                                            })
+                                            .switchIfEmpty(Mono.defer(() -> {
+                                                CartItem ci = new CartItem();
+                                                ci.setCartId(cid);
+                                                ci.setItemId(itemId);
+                                                ci.setCount(1);
+                                                return cartItemRepo.save(ci);
+                                            }))
+                            )
+                            .thenReturn(cid);
+                })
+                .flatMap(this::loadCart);
     }
 
-    public Mono<Cart> delete(Long itemId) { return getOrCreateCart()
-            .flatMap(cart -> {
-                Long cid = cart.getId();
-                return cartItemRepo.findByCartId(cid)
-                        .filter(ci -> ci.getItemId().equals(itemId))
-                        .next()
-                        .flatMap(ci -> cartItemRepo.delete(ci).thenReturn(cid));
-            })
-            .flatMap(this::loadCart);
+    @Transactional
+    public Mono<Cart> remove(Long itemId, UserDetails userDetails) {
+        return getOrCreateCart(userDetails)
+                .flatMap(cart -> {
+                    Long cid = cart.getId();
+                    return cartItemRepo.findByCartId(cid)
+                            .filter(ci -> ci.getItemId().equals(itemId))
+                            .next()
+                            .flatMap(ci -> {
+                                if (ci.getCount() > 1) {
+                                    ci.setCount(ci.getCount() - 1);
+                                    return cartItemRepo.save(ci).thenReturn(cid);
+                                } else {
+                                    return cartItemRepo.delete(ci).thenReturn(cid);
+                                }
+                            });
+                })
+                .flatMap(this::loadCart);
+    }
+
+    @Transactional
+    public Mono<Cart> delete(Long itemId, UserDetails userDetails) {
+        return getOrCreateCart(userDetails)
+                .flatMap(cart -> {
+                    Long cid = cart.getId();
+                    return cartItemRepo.findByCartId(cid)
+                            .filter(ci -> ci.getItemId().equals(itemId))
+                            .next()
+                            .flatMap(ci -> cartItemRepo.delete(ci).thenReturn(cid));
+                })
+                .flatMap(this::loadCart);
     }
 
     private Mono<Cart> loadCart(Long cartId) {
@@ -107,8 +123,8 @@ public class CartService {
     }
 
 
-    public Mono<CartPageData> buildCartPageData() {
-        return getOrCreateCart()
+    public Mono<CartPageData> buildCartPageData(UserDetails userDetails) {
+        return getOrCreateCart(userDetails)
                 .flatMap(cart ->
                         paymentClient.getBalance()
                                 .map(balance -> {
