@@ -20,7 +20,6 @@ import java.math.BigDecimal;
 
 @RestController
 @RequiredArgsConstructor
-
 public class PaymentController implements PaymentsApi {
 
     private final PaymentService paymentService;

@@ -16,3 +16,4 @@ spring:
                 - client_credentials
               scopes:
                 - payments.read
+                - payments.write
