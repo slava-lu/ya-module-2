@@ -8,6 +8,7 @@ import com.example.payments.services.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,24 +27,20 @@ public class PaymentController implements PaymentsApi {
 
     @GetMapping("/payments/balance")
     public Mono<ResponseEntity<BigDecimal>> getBalance(
-            @AuthenticationPrincipal UserDetails userDetails,
-            ServerWebExchange exchange
+            @AuthenticationPrincipal Jwt jwt
     ) {
-        return paymentService.getBalance(userDetails.getUsername())
-                .map(ResponseEntity::ok);
+        String clientId = jwt.getSubject(); // usually your client-id
+        return paymentService.getBalance(clientId).map(ResponseEntity::ok);
     }
 
     @PostMapping("/payments/pay")
     public Mono<ResponseEntity<PaymentResponse>> processPayment(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody Mono<PaymentRequest> paymentRequest,
-            ServerWebExchange exchange
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody Mono<PaymentRequest> paymentRequest
     ) {
+        String clientId = jwt.getSubject();
         return paymentRequest
-                .flatMap(req -> paymentService.processPayment(
-                        userDetails.getUsername(),
-                        req.getAmount()
-                ))
+                .flatMap(req -> paymentService.processPayment(clientId, req.getAmount()))
                 .map(result -> ResponseEntity.ok(new PaymentResponse().message(result)));
     }
 }
