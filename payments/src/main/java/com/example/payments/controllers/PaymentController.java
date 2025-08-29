@@ -21,7 +21,7 @@ import java.math.BigDecimal;
 
 @RestController
 @RequiredArgsConstructor
-public class PaymentController implements PaymentsApi {
+public class PaymentController  {
 
     private final PaymentService paymentService;
 
