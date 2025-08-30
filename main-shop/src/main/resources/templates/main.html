@@ -26,8 +26,8 @@
     <a sec:authorize="isAnonymous()" th:href="@{/login}">
         <b>ВОЙТИ &cudarrr;</b>
     </a>
-    <a href="/orders"><b>ЗАКАЗЫ &cudarrr;</b></a>
-    <a href="/cart/items"><b>КОРЗИНА &cudarrr;</b></a>
+    <a sec:authorize="isAuthenticated()" href="/orders"><b>ЗАКАЗЫ &cudarrr;</b></a>
+    <a sec:authorize="isAuthenticated()" href="/cart/items"><b>КОРЗИНА &cudarrr;</b></a>
 </nav>
 
 <table style="width:70%;margin-left:auto;margin-right:auto;">

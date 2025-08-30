@@ -1,38 +1,53 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<meta charset="utf-8">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <head>
+    <meta charset="utf-8">
     <title>Витрина товаров</title>
+    <style>
+        .menu { width:100%; }
+        .menu > * { float: right; margin-left: 12px; }
+        .btn-link {
+            background: none; border: none; padding: 0; margin: 0;
+            font: inherit; color: inherit; cursor: pointer; text-decoration: underline;
+        }
+        .clearfix::after { content: ""; display: table; clear: both; }
+    </style>
 </head>
 
 <body>
-    <a href="/orders" style="float:right;">
-        <b>ЗАКАЗЫ &cudarrr;</b>
+
+<nav class="menu clearfix">
+    <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" style="display:inline;">
+        <button class="btn-link"><b>ВЫЙТИ &cudarrr;</b></button>
+    </form>
+    <a sec:authorize="isAnonymous()" th:href="@{/login}">
+        <b>ВОЙТИ &cudarrr;</b>
     </a>
-    <a href="/cart/items" style="float:right;">
-        <b>КОРЗИНА &cudarrr;</b>
-    </a>
-    <a href="/main/items" style="float:right;">
-        <b>ГЛАВНАЯ &cudarrr;</b>
-    </a>
-    <div style="width:70%;margin-left:auto;margin-right:auto;">
-        <p>
-            <img width="300" height="300" th:src="${'http://localhost:8080/'+item.getImgPath()}">
-        </p>
-        <p>
-            <b th:text="${item.getTitle()}"></b>
-            <b th:text="${item.getPrice()}+' руб.'" style="text-align:right;"></b>
-        </p>
-        <p>
-            <span th:text="${item.getDescription()}"></span>
-        </p>
-        <form th:method="post">
+    <a sec:authorize="isAuthenticated()" href="/orders"><b>ЗАКАЗЫ &cudarrr;</b></a>
+    <a sec:authorize="isAuthenticated()" href="/cart/items"><b>КОРЗИНА &cudarrr;</b></a>
+    <a href="/main/items"><b>ГЛАВНАЯ &cudarrr;</b></a>
+</nav>
+
+<div style="width:70%; margin-left:auto; margin-right:auto; padding-top: 50px; clear: both;">
+    <p>
+        <img width="300" height="300" th:src="${'http://localhost:8080/'+item.getImgPath()}">
+    </p>
+    <p>
+        <b th:text="${item.getTitle()}"></b>
+        <b th:text="${item.getPrice()}+' руб.'" style="float:right;"></b>
+    </p>
+    <p>
+        <span th:text="${item.getDescription()}"></span>
+    </p>
+
+    <form th:method="post">
+        <div sec:authorize="isAuthenticated()">
             <button type="submit"
                     th:formaction="@{'/items/' + ${item.id} + '?action=minus'}">
                 −
             </button>
-
             <span th:text="${item.count}">0</span>
             <button type="submit"
                     th:formaction="@{'/items/' + ${item.id} + '?action=plus'}">
@@ -44,8 +59,13 @@
                     style="float:right;">
                 В корзину
             </button>
-        </form>
-    </div>
-</body>
+        </div>
 
+        <div sec:authorize="isAnonymous()">
+            <a th:href="@{/login}">Войти, чтобы добавить в корзину</a>
+        </div>
+    </form>
+</div>
+
+</body>
 </html>
