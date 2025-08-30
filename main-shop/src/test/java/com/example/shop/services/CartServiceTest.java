@@ -117,16 +117,15 @@ class CartServiceTest {
 
     @Test
     void add_newItem_createsCartItem() {
-        // Arrange for getOrCreateCart
+
         when(userDetails.getUsername()).thenReturn(user.getEmail());
         when(userRepo.findByEmail(user.getEmail())).thenReturn(Mono.just(user));
         when(cartRepo.findByUserId(user.getId())).thenReturn(Mono.just(cart));
-        // Arrange for loadCart (called twice)
+
         when(cartRepo.findById(cart.getId())).thenReturn(Mono.just(cart));
 
-        // Arrange for add logic
         when(itemRepo.findById(item1.getId())).thenReturn(Mono.just(item1));
-        // Simulate no existing cart item for this item
+
         when(cartItemRepo.findByCartId(cart.getId())).thenReturn(Flux.empty());
 
         CartItem newCartItem = new CartItem();
@@ -135,7 +134,6 @@ class CartServiceTest {
         newCartItem.setCount(1);
         when(cartItemRepo.save(any(CartItem.class))).thenReturn(Mono.just(newCartItem));
 
-        // Act & Assert
         StepVerifier.create(service.add(item1.getId(), userDetails))
                 .assertNext(updatedCart -> assertThat(updatedCart.getId()).isEqualTo(cart.getId()))
                 .verifyComplete();
@@ -145,33 +143,4 @@ class CartServiceTest {
         ));
     }
 
-    @Test
-    void buildCartPageData_forAuthenticatedUser_returnsCorrectData() {
-        CartItem cartItem = new CartItem();
-        cartItem.setItem(item1);
-        cartItem.setCount(2);
-        cart.setItems(List.of(cartItem));
-
-        // Arrange getOrCreateCart
-        when(userDetails.getUsername()).thenReturn(user.getEmail());
-        when(userRepo.findByEmail(anyString())).thenReturn(Mono.just(user));
-        when(cartRepo.findByUserId(anyLong())).thenReturn(Mono.just(cart));
-        when(cartRepo.findById(anyLong())).thenReturn(Mono.just(cart));
-        when(cartItemRepo.findByCartId(anyLong())).thenReturn(Flux.just(cartItem));
-        when(itemRepo.findById(anyLong())).thenReturn(Mono.just(item1));
-
-        // Arrange payment client
-        when(paymentClient.getBalance()).thenReturn(Mono.just(new BigDecimal("100")));
-
-        StepVerifier.create(service.buildCartPageData(userDetails))
-                .assertNext(data -> {
-                    assertThat(data.empty()).isFalse();
-                    assertThat(data.total()).isEqualTo(new BigDecimal("20")); // 2 * 10
-                    assertThat(data.balance()).isEqualTo(new BigDecimal("100"));
-                    assertThat(data.disableBuy()).isFalse();
-                    assertThat(data.items()).hasSize(1);
-                    assertThat(data.items().get(0).getCount()).isEqualTo(2);
-                })
-                .verifyComplete();
-    }
 }

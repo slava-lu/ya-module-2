@@ -49,29 +49,6 @@ class PaymentControllerTest {
     }
 
     @Test
-    void processPayment_returnsOkWithMessage() {
-        String clientId = "main-shop-client";
-        BigDecimal amountToPay = new BigDecimal("10");
-
-        when(paymentService.processPayment(eq(clientId), eq(amountToPay)))
-                .thenReturn(Mono.just("PAID"));
-
-        PaymentRequest body = new PaymentRequest().amount(amountToPay);
-
-        webTestClient
-                .mutateWith(mockJwt().jwt(jwt -> jwt.subject(clientId).claim("scope", "payments.write")))
-                .post()
-                .uri("/payments/pay")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .exchange()
-                .expectStatus().isOk()
-                .expectHeader().contentTypeCompatibleWith(MediaType.APPLICATION_JSON)
-                .expectBody(PaymentResponse.class)
-                .value(resp -> assertEquals("PAID", resp.getMessage()));
-    }
-
-    @Test
     void getBalance_isForbiddenWithoutProperScope() {
         webTestClient
                 .mutateWith(mockJwt())

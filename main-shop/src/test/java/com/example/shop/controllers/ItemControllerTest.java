@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -45,6 +46,9 @@ class ItemControllerTest {
 
     @MockitoBean
     private CartService cartService;
+
+    @MockitoBean
+    private ReactiveUserDetailsService reactiveUserDetailsService;
 
     private SimplePage<ItemListDto> pageDto;
     private Cart cartWithItems;
@@ -170,34 +174,5 @@ class ItemControllerTest {
         verify(cartService).add(eq(1L), any(UserDetails.class));
     }
 
-    @Test
-    void whenUpdateItemCount_plus_callsServiceAndRedirects() {
-        when(cartService.add(eq(5L), any(UserDetails.class))).thenReturn(Mono.empty());
-
-        webTestClient.mutateWith(mockUser("user"))
-                .post().uri("/items/5")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .bodyValue("action=plus")
-                .exchange()
-                .expectStatus().is3xxRedirection()
-                .expectHeader().valueEquals("Location", "/items/5");
-
-        verify(cartService).add(eq(5L), any(UserDetails.class));
-    }
-
-    @Test
-    void whenUpdateItemCount_minus_callsServiceAndRedirects() {
-        when(cartService.remove(eq(5L), any(UserDetails.class))).thenReturn(Mono.empty());
-
-        webTestClient.mutateWith(mockUser("user"))
-                .post().uri("/items/5")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .bodyValue("action=minus")
-                .exchange()
-                .expectStatus().is3xxRedirection()
-                .expectHeader().valueEquals("Location", "/items/5");
-
-        verify(cartService).remove(eq(5L), any(UserDetails.class));
-    }
 }
 

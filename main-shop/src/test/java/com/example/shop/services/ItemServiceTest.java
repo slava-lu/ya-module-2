@@ -52,8 +52,6 @@ class ItemServiceTest {
         Item i1 = new Item(1L, "Title1", "Desc1", "/img1", BigDecimal.ONE, 0);
         Item i2 = new Item(2L, "Title2", "Desc2", "/img2", BigDecimal.TEN, 0);
         content = List.of(i1, i2);
-
-        when(cacheManager.getCache("itemListPages")).thenReturn(cache);
     }
 
     @Test
@@ -146,6 +144,7 @@ class ItemServiceTest {
 
     @Test
     void getItemsPageSync_emptyCache_fetchesFromRepoAndCaches() {
+        when(cacheManager.getCache("itemListPages")).thenReturn(cache);
         when(cache.get(anyString(), any(Class.class))).thenReturn(null);
         when(itemRepository.count()).thenReturn(Mono.just(2L));
         when(itemRepository.findAll(any(Pageable.class))).thenReturn(Flux.fromIterable(content));
@@ -163,6 +162,7 @@ class ItemServiceTest {
 
     @Test
     void getItemsPageSync_fullCacheHit_returnsFromCacheWithoutRepoInteraction() {
+        when(cacheManager.getCache("itemListPages")).thenReturn(cache);
         var cachedItems = new ItemService.CachedItems();
         cachedItems.total = 2;
         cachedItems.items.add(new ItemListDto(1L, "Title1", "Desc1", BigDecimal.ONE, "/img1"));
@@ -177,3 +177,4 @@ class ItemServiceTest {
         verifyNoInteractions(itemRepository);
     }
 }
+

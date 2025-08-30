@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -31,6 +32,9 @@ class OrderControllerTest {
 
     @MockitoBean
     private OrderService orderService;
+
+    @MockitoBean
+    private ReactiveUserDetailsService reactiveUserDetailsService;
 
     private Order order1;
     private Order order2;
