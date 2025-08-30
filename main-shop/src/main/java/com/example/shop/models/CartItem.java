@@ -15,10 +15,6 @@ public class CartItem {
 
     @Id
     private Long id;
-
-    /**
-     * Foreign key columns that actually get stored
-     */
     private Long itemId;
     private Long cartId;
 

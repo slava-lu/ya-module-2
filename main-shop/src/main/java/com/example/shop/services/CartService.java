@@ -29,7 +29,6 @@ public class CartService {
     private final UserRepository userRepo;
     private final PaymentServiceClient paymentClient;
 
-    /** Resolve current user or empty if anonymous */
     private Mono<User> getCurrentUser(UserDetails userDetails) {
         if (userDetails == null) {
             return Mono.empty();
@@ -37,16 +36,13 @@ public class CartService {
         return userRepo.findByEmail(userDetails.getUsername());
     }
 
-    /** A reusable empty cart for anonymous or when needed */
     private Cart createEmptyCart() {
         Cart empty = new Cart();
         empty.setItems(List.of());
-        // leave id/userId unset (null); computed getters like getTotal()/isEmpty() should handle empty list
         return empty;
     }
 
     public Mono<Cart> getOrCreateCart(UserDetails userDetails) {
-        // For anonymous users, return an empty cart (no NPE, no DB hits)
         return getCurrentUser(userDetails)
                 .flatMap(user -> cartRepo.findByUserId(user.getId())
                         .switchIfEmpty(Mono.defer(() -> {
@@ -59,7 +55,6 @@ public class CartService {
                 .switchIfEmpty(Mono.just(createEmptyCart()));
     }
 
-    /** Guard to block any cart mutations for anonymous users */
     private <T> Mono<T> denyIfAnonymous(UserDetails userDetails) {
         if (userDetails == null) {
             return Mono.error(new AccessDeniedException("Login required to modify cart."));
@@ -73,7 +68,6 @@ public class CartService {
                 .then(getOrCreateCart(userDetails))
                 .flatMap(cart -> {
                     Long cid = cart.getId();
-                    // If we somehow ended up with a cart without id (shouldn't happen for authenticated users), guard:
                     if (cid == null) {
                         return Mono.error(new IllegalStateException("Cart not persisted for authenticated user."));
                     }
@@ -158,7 +152,6 @@ public class CartService {
     }
 
     public Mono<CartPageData> buildCartPageData(UserDetails userDetails) {
-        // Anonymous: show empty cart summary without touching payment service
         return getCurrentUser(userDetails)
                 .flatMap(u ->
                         getOrCreateCart(userDetails)
@@ -167,7 +160,7 @@ public class CartService {
                                             List<Item> items = cart.getItems().stream()
                                                     .map(ci -> {
                                                         Item i = ci.getItem();
-                                                        i.setCount(ci.getCount()); // count is @Transient on Item
+                                                        i.setCount(ci.getCount());
                                                         return i;
                                                     })
                                                     .collect(Collectors.toList());

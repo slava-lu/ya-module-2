@@ -19,10 +19,9 @@ public class OrderService {
     private final OrderItemRepository orderItemRepo;
     private final CartService cartService;
     private final CartItemRepository cartItemRepo;
-    private final UserRepository userRepo; // Add UserRepository
+    private final UserRepository userRepo;
     private final PaymentServiceClient paymentServiceClient;
 
-    // Helper method to get the current application user
     private Mono<User> getCurrentUser(UserDetails userDetails) {
         return userRepo.findByEmail(userDetails.getUsername());
     }
@@ -38,7 +37,7 @@ public class OrderService {
                     Cart cart = tuple.getT2();
 
                     Order order = new Order();
-                    order.setUserId(user.getId()); // Set the user ID on the order
+                    order.setUserId(user.getId());
                     for (CartItem ci : cart.getItems()) {
                         OrderItem oi = new OrderItem();
                         oi.setItemId(ci.getItemId());
@@ -54,7 +53,7 @@ public class OrderService {
                                             Flux.fromIterable(order.getItems())
                                                     .doOnNext(oi -> oi.setOrderId(savedOrder.getId()))
                                                     .flatMap(orderItemRepo::save)
-                                                    .then(cartItemRepo.deleteAll(cart.getItems())) // Clear cart items
+                                                    .then(cartItemRepo.deleteAll(cart.getItems()))
                                                     .thenReturn(savedOrder)
                                     ))
                             .onErrorResume(e -> Mono.error(new IllegalStateException(
@@ -70,7 +69,7 @@ public class OrderService {
     public Mono<Order> findByIdForUser(Long id, UserDetails userDetails) {
         return getCurrentUser(userDetails)
                 .flatMap(user -> orderRepo.findById(id)
-                        .filter(order -> order.getUserId().equals(user.getId())) // Ensure order belongs to user
+                        .filter(order -> order.getUserId().equals(user.getId()))
                 )
                 .switchIfEmpty(Mono.error(new NoSuchElementException("Order not found or access denied: " + id)));
     }

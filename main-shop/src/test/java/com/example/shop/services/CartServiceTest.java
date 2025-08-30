@@ -41,20 +41,15 @@ class CartServiceTest {
 
     @Test
     void getOrCreateCart_firstTime_createsAndLoads() {
-        // arrange
         Cart saved = new Cart();
         saved.setId(100L);
         when(cartRepo.save(any(Cart.class))).thenReturn(Mono.just(saved));
         when(cartRepo.findById(100L)).thenReturn(Mono.just(saved));
         when(cartItemRepo.findByCartId(100L)).thenReturn(Flux.empty());
 
-        // act
         Cart result = service.getOrCreateCart().block();
-
-        // assert
         assertSame(saved, result);
         verify(cartRepo).save(any(Cart.class));
-        // now we DO expect exactly one findById(100)
         verify(cartRepo).findById(100L);
         verifyNoMoreInteractions(cartRepo);
     }
@@ -77,7 +72,6 @@ class CartServiceTest {
         assertSame(loaded, r2);
 
         verify(cartRepo).save(any(Cart.class));
-        // two total loads
         verify(cartRepo, times(2)).findById(200L);
     }
 

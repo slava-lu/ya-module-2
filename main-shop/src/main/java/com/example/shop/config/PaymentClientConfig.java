@@ -15,7 +15,6 @@ public class PaymentClientConfig {
             @Value("${payment.service.base-url}") String baseUrl,
             WebClient oauth2WebClient
     ) {
-        // Use the OAuth2-enabled WebClient
         ApiClient apiClient = new ApiClient(oauth2WebClient);
         apiClient.setBasePath(baseUrl);
         return new PaymentsApi(apiClient);

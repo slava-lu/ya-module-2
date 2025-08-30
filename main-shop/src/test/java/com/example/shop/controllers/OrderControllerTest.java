@@ -63,7 +63,6 @@ class OrderControllerTest {
                 .expectBody(String.class)
                 .consumeWith(resp -> {
                     String html = resp.getResponseBody();
-                    // should mention both order IDs in the rendered HTML
                     assert html.contains("10");
                     assert html.contains("20");
                 });
@@ -84,7 +83,6 @@ class OrderControllerTest {
                 .expectBody(String.class)
                 .consumeWith(resp -> {
                     String html = resp.getResponseBody();
-                    // page should contain the order ID and no "new order" banner
                     assert html.contains("10");
                     assert !html.contains("newOrder");
                 });

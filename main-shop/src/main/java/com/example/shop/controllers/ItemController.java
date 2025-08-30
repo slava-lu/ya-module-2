@@ -120,7 +120,7 @@ public class ItemController {
                 .subscribeOn(Schedulers.boundedElastic())
                 .zipWith(cartService.getOrCreateCart(userDetails))
                 .map(tuple -> {
-                    var dto  = tuple.getT1(); // ItemCardDto
+                    var dto  = tuple.getT1();
                     var cart = tuple.getT2();
 
                     int cnt = cart.getItems().stream()

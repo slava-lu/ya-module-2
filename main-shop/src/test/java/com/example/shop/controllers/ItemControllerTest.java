@@ -39,18 +39,16 @@ class ItemControllerTest {
 
     @BeforeEach
     void setUp() {
-        // Build ItemListDto with correct param order: (id, title, description, price, imgPath)
         ItemListDto it1 = new ItemListDto(1L, "A", "desc A", BigDecimal.valueOf(5), "/img/a.png");
         ItemListDto it2 = new ItemListDto(2L, "B", "desc B", BigDecimal.valueOf(10), "/img/b.png");
 
         pageDto = new SimplePage<>(
                 List.of(it1, it2),
-                1,   // pageNumber
-                10,  // pageSize
-                2    // totalElements
+                1,
+                10,
+                2
         );
 
-        // Cart with 3 of item 1
         Item full1 = new Item(1L, "A", "desc A", "/img/a.png", BigDecimal.valueOf(5), 0);
         CartItem ci = new CartItem();
         ci.setItemId(1L);
@@ -93,7 +91,6 @@ class ItemControllerTest {
                     assert html != null;
                     assert html.contains("A");
                     assert html.contains("B");
-                    // item1 count = 3, item2 count = 0
                     assert html.contains(">3<");
                 });
 
@@ -103,7 +100,6 @@ class ItemControllerTest {
 
     @Test
     void whenGetShowItem_thenModelHasItemWithCount() {
-        // ItemCardDto with order: (id, imgPath, title, description, price)
         ItemCardDto dto = new ItemCardDto(3L, "/img/x.png", "X", "desc X", BigDecimal.valueOf(20));
         when(itemService.getItemCardSync(3L)).thenReturn(dto);
 

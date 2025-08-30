@@ -1,7 +1,5 @@
 package com.example.payments.controllers;
 
-// No longer importing PaymentsApi
-import com.example.payments.api.PaymentsApi;
 import com.example.payments.api.model.PaymentRequest;
 import com.example.payments.api.model.PaymentResponse;
 import com.example.payments.services.PaymentService;
@@ -29,7 +27,7 @@ public class PaymentController  {
     public Mono<ResponseEntity<BigDecimal>> getBalance(
             @AuthenticationPrincipal Jwt jwt
     ) {
-        String clientId = jwt.getSubject(); // usually your client-id
+        String clientId = jwt.getSubject();
         return paymentService.getBalance(clientId).map(ResponseEntity::ok);
     }
 
