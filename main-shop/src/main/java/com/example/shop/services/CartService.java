@@ -9,6 +9,7 @@ import com.example.shop.repositories.CartRepository;
 import com.example.shop.repositories.ItemRepository;
 import com.example.shop.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,15 +26,27 @@ public class CartService {
     private final CartRepository cartRepo;
     private final CartItemRepository cartItemRepo;
     private final ItemRepository itemRepo;
-    private final UserRepository userRepo; // Add UserRepository
+    private final UserRepository userRepo;
     private final PaymentServiceClient paymentClient;
 
-    // Helper method to get the current application user
+    /** Resolve current user or empty if anonymous */
     private Mono<User> getCurrentUser(UserDetails userDetails) {
+        if (userDetails == null) {
+            return Mono.empty();
+        }
         return userRepo.findByEmail(userDetails.getUsername());
     }
 
+    /** A reusable empty cart for anonymous or when needed */
+    private Cart createEmptyCart() {
+        Cart empty = new Cart();
+        empty.setItems(List.of());
+        // leave id/userId unset (null); computed getters like getTotal()/isEmpty() should handle empty list
+        return empty;
+    }
+
     public Mono<Cart> getOrCreateCart(UserDetails userDetails) {
+        // For anonymous users, return an empty cart (no NPE, no DB hits)
         return getCurrentUser(userDetails)
                 .flatMap(user -> cartRepo.findByUserId(user.getId())
                         .switchIfEmpty(Mono.defer(() -> {
@@ -41,15 +54,29 @@ public class CartService {
                             newCart.setUserId(user.getId());
                             return cartRepo.save(newCart);
                         }))
+                        .flatMap(cart -> loadCart(cart.getId()))
                 )
-                .flatMap(cart -> loadCart(cart.getId()));
+                .switchIfEmpty(Mono.just(createEmptyCart()));
+    }
+
+    /** Guard to block any cart mutations for anonymous users */
+    private <T> Mono<T> denyIfAnonymous(UserDetails userDetails) {
+        if (userDetails == null) {
+            return Mono.error(new AccessDeniedException("Login required to modify cart."));
+        }
+        return Mono.empty();
     }
 
     @Transactional
     public Mono<Cart> add(Long itemId, UserDetails userDetails) {
-        return getOrCreateCart(userDetails)
+        return denyIfAnonymous(userDetails)
+                .then(getOrCreateCart(userDetails))
                 .flatMap(cart -> {
                     Long cid = cart.getId();
+                    // If we somehow ended up with a cart without id (shouldn't happen for authenticated users), guard:
+                    if (cid == null) {
+                        return Mono.error(new IllegalStateException("Cart not persisted for authenticated user."));
+                    }
                     return itemRepo.findById(itemId)
                             .switchIfEmpty(Mono.error(new IllegalArgumentException("No item " + itemId)))
                             .flatMap(item ->
@@ -75,9 +102,13 @@ public class CartService {
 
     @Transactional
     public Mono<Cart> remove(Long itemId, UserDetails userDetails) {
-        return getOrCreateCart(userDetails)
+        return denyIfAnonymous(userDetails)
+                .then(getOrCreateCart(userDetails))
                 .flatMap(cart -> {
                     Long cid = cart.getId();
+                    if (cid == null) {
+                        return Mono.error(new IllegalStateException("Cart not persisted for authenticated user."));
+                    }
                     return cartItemRepo.findByCartId(cid)
                             .filter(ci -> ci.getItemId().equals(itemId))
                             .next()
@@ -95,9 +126,13 @@ public class CartService {
 
     @Transactional
     public Mono<Cart> delete(Long itemId, UserDetails userDetails) {
-        return getOrCreateCart(userDetails)
+        return denyIfAnonymous(userDetails)
+                .then(getOrCreateCart(userDetails))
                 .flatMap(cart -> {
                     Long cid = cart.getId();
+                    if (cid == null) {
+                        return Mono.error(new IllegalStateException("Cart not persisted for authenticated user."));
+                    }
                     return cartItemRepo.findByCartId(cid)
                             .filter(ci -> ci.getItemId().equals(itemId))
                             .next()
@@ -122,28 +157,36 @@ public class CartService {
                 );
     }
 
-
     public Mono<CartPageData> buildCartPageData(UserDetails userDetails) {
-        return getOrCreateCart(userDetails)
-                .flatMap(cart ->
-                        paymentClient.getBalance()
-                                .map(balance -> {
-                                    List<Item> items = cart.getItems().stream()
-                                            .map(ci -> {
-                                                Item i = ci.getItem();
-                                                i.setCount(ci.getCount()); // count is @Transient on Item
-                                                return i;
-                                            })
-                                            .collect(Collectors.toList());
+        // Anonymous: show empty cart summary without touching payment service
+        return getCurrentUser(userDetails)
+                .flatMap(u ->
+                        getOrCreateCart(userDetails)
+                                .flatMap(cart ->
+                                        paymentClient.getBalance().map(balance -> {
+                                            List<Item> items = cart.getItems().stream()
+                                                    .map(ci -> {
+                                                        Item i = ci.getItem();
+                                                        i.setCount(ci.getCount()); // count is @Transient on Item
+                                                        return i;
+                                                    })
+                                                    .collect(Collectors.toList());
 
-                                    BigDecimal total = cart.getTotal();
-                                    boolean disableBuy = balance.compareTo(total) < 0;
+                                            BigDecimal total = cart.getTotal();
+                                            boolean disableBuy = balance.compareTo(total) < 0;
 
-                                    return new CartPageData(items, total, cart.isEmpty(), balance, disableBuy);
-                                })
-                );
+                                            return new CartPageData(items, total, cart.isEmpty(), balance, disableBuy);
+                                        })
+                                )
+                )
+                .switchIfEmpty(Mono.just(new CartPageData(
+                        List.of(),
+                        BigDecimal.ZERO,
+                        true,
+                        BigDecimal.ZERO,
+                        true
+                )));
     }
-
 
     public record CartPageData(
             List<Item> items,
