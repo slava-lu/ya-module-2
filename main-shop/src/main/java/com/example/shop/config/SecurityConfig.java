@@ -9,6 +9,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authentication.logout.RedirectServerLogoutSuccessHandler;
+
+import java.net.URI;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -20,16 +23,20 @@ public class SecurityConfig {
     }
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        RedirectServerLogoutSuccessHandler logoutSuccessHandler =
+                new RedirectServerLogoutSuccessHandler();
+        logoutSuccessHandler.setLogoutSuccessUrl(URI.create("/"));
+
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers("/images/**", "/css/**").permitAll()
                         .anyExchange().authenticated()
                 )
-
                 .formLogin(Customizer.withDefaults())
                 .logout(logout -> logout
                         .logoutUrl("/logout")
+                        .logoutSuccessHandler(logoutSuccessHandler)
                 )
                 .build();
     }

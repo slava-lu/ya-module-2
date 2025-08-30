@@ -1,123 +1,108 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <meta charset="utf-8">
 
 <head>
     <title>Витрина товаров</title>
+    <style>
+        .menu { width:100%; }
+        .menu > * { float: right; margin-left: 12px; }
+        .btn-link {
+            background: none; border: none; padding: 0; margin: 0;
+            font: inherit; color: inherit; cursor: pointer; text-decoration: underline;
+        }
+        .clearfix::after { content: ""; display: table; clear: both; }
+    </style>
 </head>
 
 <body>
-    <a href="/orders" style="float:right;">
-        <b>ЗАКАЗЫ &cudarrr;</b>
+<nav class="menu clearfix">
+    <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" style="display:inline;">
+        <button class="btn-link"><b>ВЫЙТИ &cudarrr;</b></button>
+    </form>
+    <a sec:authorize="isAnonymous()" href="/login">
+        <b>ВОЙТИ &cudarrr;</b>
     </a>
-    <a href="/cart/items" style="float:right;">
-        <b>КОРЗИНА &cudarrr;</b>
-    </a>
-    <table style="width:70%;margin-left:auto;margin-right:auto;">
-        <tr>
-            <td>
-                <form>
-                    <p>
-                        <label for="search">Найти: </label>
-                        <input id="search" style="width:300px;" name="search" th:value="${search}">
-                        <button name="action">&#128269;</button>
-                    </p>
-                    <p>
-                        <label for="sort">Сортировка: </label>
-                        <select id="sort" name="sort" onchange="this.form.submit()">
-                            <option value="NO"
-                                    th:selected="${sort.name() == 'NO'}">
-                                нет
-                            </option>
-                            <option value="ALPHA"
-                                    th:selected="${sort.name() == 'ALPHA'}">
-                                по алфавиту
-                            </option>
-                            <option value="PRICE"
-                                    th:selected="${sort.name() == 'PRICE'}">
-                                по цене
-                            </option>
-                        </select>
-                    </p>
-                    <p>
-                        <label for="pageSize">Число товаров: </label>
-                        <select id="pageSize" name="pageSize" onchange="this.form.submit()">
-                            <option value="5" th:selected="${paging.pageSize()==5}">5</option>
-                            <option value="10" th:selected="${paging.pageSize()==10}">10</option>
-                            <option value="20" th:selected="${paging.pageSize()==20}">20</option>
-                            <option value="50" th:selected="${paging.pageSize()==50}">50</option>
-                            <option value="100" th:selected="${paging.pageSize()==100}">100</option>
-                        </select>
-                    </p>
-                    <p>
-                        <button th:if="${paging.hasPrevious()}" name="pageNumber" th:value="${paging.pageNumber()-1}">&lt;</button>
-                        <span th:text="${'Страница: '+paging.pageNumber()}"></span>
-                        <button th:if="${paging.hasNext()}" name="pageNumber" th:value="${paging.pageNumber()+1}">&gt;</button>
-                    </p>
-                </form>
-            </td>
-        </tr>
-        <tr th:each="itemsRow : ${items}">
-            <td th:each="item : ${itemsRow}">
-                <table>
-                    <tr>
-                        <td>
-                            <a th:href="${'/items/'+item.getId()}">
-                                <img width="300" height="300" th:src="${'http://localhost:8080/'+item.getImgPath()}">
-                            </a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <b th:text="${item.getTitle()}"></b>
-                        </td>
-                        <td>
-                            <b th:text="${item.getPrice()}+' руб.'"></b>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td th:text="${item.getDescription()}"></td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <form
-                                    th:action="@{/main/items/{id}(id=${item.id})}"
-                                    method="post">
+>
+    <a href="/orders"><b>ЗАКАЗЫ &cudarrr;</b></a>
+    <a href="/cart/items"><b>КОРЗИНА &cudarrr;</b></a>
+</nav>
 
-                                <button
-                                        type="submit"
-                                        th:formaction="@{/main/items/{id}(id=${item.id},action='minus')}">
-                                    −
-                                </button>
+<table style="width:70%;margin-left:auto;margin-right:auto;">
+    <tr>
+        <td>
+            <form>
+                <p>
+                    <label for="search">Найти: </label>
+                    <input id="search" style="width:300px;" name="search" th:value="${search}">
+                    <button name="action">&#128269;</button>
+                </p>
+                <p>
+                    <label for="sort">Сортировка: </label>
+                    <select id="sort" name="sort" onchange="this.form.submit()">
+                        <option value="NO" th:selected="${sort.name() == 'NO'}">нет</option>
+                        <option value="ALPHA" th:selected="${sort.name() == 'ALPHA'}">по алфавиту</option>
+                        <option value="PRICE" th:selected="${sort.name() == 'PRICE'}">по цене</option>
+                    </select>
+                </p>
+                <p>
+                    <label for="pageSize">Число товаров: </label>
+                    <select id="pageSize" name="pageSize" onchange="this.form.submit()">
+                        <option value="5" th:selected="${paging.pageSize()==5}">5</option>
+                        <option value="10" th:selected="${paging.pageSize()==10}">10</option>
+                        <option value="20" th:selected="${paging.pageSize()==20}">20</option>
+                        <option value="50" th:selected="${paging.pageSize()==50}">50</option>
+                        <option value="100" th:selected="${paging.pageSize()==100}">100</option>
+                    </select>
+                </p>
+                <p>
+                    <button th:if="${paging.hasPrevious()}" name="pageNumber" th:value="${paging.pageNumber()-1}">&lt;</button>
+                    <span th:text="${'Страница: '+paging.pageNumber()}"></span>
+                    <button th:if="${paging.hasNext()}" name="pageNumber" th:value="${paging.pageNumber()+1}">&gt;</button>
+                </p>
+            </form>
+        </td>
+    </tr>
+    <tr th:each="itemsRow : ${items}">
+        <td th:each="item : ${itemsRow}">
+            <table>
+                <tr>
+                    <td>
+                        <a th:href="${'/items/'+item.getId()}">
+                            <img width="300" height="300" th:src="${'http://localhost:8080/'+item.getImgPath()}">
+                        </a>
+                    </td>
+                </tr>
+                <tr>
+                    <td><b th:text="${item.getTitle()}"></b></td>
+                    <td><b th:text="${item.getPrice()}+' руб.'"></b></td>
+                </tr>
+                <tr>
+                    <td th:text="${item.getDescription()}"></td>
+                </tr>
+                <tr>
+                    <td>
+                        <form th:action="@{/main/items/{id}(id=${item.id})}" method="post">
+                            <button type="submit" th:formaction="@{/main/items/{id}(id=${item.id},action='minus')}">−</button>
+                            <span th:text="${item.count}">0</span>
+                            <button type="submit" th:formaction="@{/main/items/{id}(id=${item.id},action='plus')}">+</button>
 
-                                <span th:text="${item.count}">0</span>
+                            <button type="submit"
+                                    th:if="${item.count == 0}"
+                                    th:formaction="@{/main/items/{id}(id=${item.id},action='plus')}"
+                                    style="float:right;">В&nbsp;корзину</button>
 
-                                <button
-                                        type="submit"
-                                        th:formaction="@{/main/items/{id}(id=${item.id},action='plus')}">
-                                    +
-                                </button>
-
-                                <button
-                                        type="submit"
-                                        th:if="${item.count == 0}"
-                                        th:formaction="@{/main/items/{id}(id=${item.id},action='plus')}"
-                                        style="float:right;">
-                                    В корзину
-                                </button>
-
-                                <input type="hidden" name="search"     th:value="${search}" />
-                                <input type="hidden" name="sort"       th:value="${sort}" />
-                                <input type="hidden" name="pageSize"   th:value="${pageSize}" />
-                                <input type="hidden" name="pageNumber" th:value="${pageNumber}" />
-
-                            </form>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+                            <input type="hidden" name="search"     th:value="${search}" />
+                            <input type="hidden" name="sort"       th:value="${sort}" />
+                            <input type="hidden" name="pageSize"   th:value="${pageSize}" />
+                            <input type="hidden" name="pageNumber" th:value="${pageNumber}" />
+                        </form>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
 </body>
-
 </html>
