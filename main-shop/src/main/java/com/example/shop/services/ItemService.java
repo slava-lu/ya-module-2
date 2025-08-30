@@ -149,7 +149,7 @@ public class ItemService {
         };
     }
 
-    private static final class CachedItems implements Serializable {
+    static final class CachedItems implements Serializable {
         private static final long serialVersionUID = 1L;
         List<ItemListDto> items = new ArrayList<>();
         long total = -1;
