@@ -7,6 +7,8 @@ import com.example.shop.services.CartService;
 import com.example.shop.services.ItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -33,23 +35,22 @@ public class ItemController {
 
     @GetMapping("/main/items")
     public Mono<Rendering> showItems(
+            @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "NO") ItemSort sort,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(defaultValue = "1") int pageNumber
     ) {
-        // Use cached synchronous page but call it off the event loop
         return Mono.fromCallable(() -> itemService.getItemsPageSync(search, sort, pageNumber, pageSize))
                 .subscribeOn(Schedulers.boundedElastic())
-                .zipWith(cartService.getOrCreateCart())
+                .zipWith(cartService.getOrCreateCart(userDetails))
                 .map(tuple -> {
-                    var page = tuple.getT1(); // SimplePage<ItemListDto>
+                    var page = tuple.getT1();
                     var cart = tuple.getT2();
 
                     Map<Long, Integer> counts = cart.getItems().stream()
                             .collect(Collectors.toMap(ci -> ci.getItem().getId(), CartItem::getCount));
 
-                    // convert DTOs to lightweight Items so the existing Thymeleaf "main" template works
                     List<Item> flatItems = page.content().stream().map(dto -> {
                         Item it = new Item();
                         it.setId(dto.id());
@@ -61,7 +62,6 @@ public class ItemController {
                         return it;
                     }).toList();
 
-                    // group into rows of 3
                     List<List<Item>> rows = new ArrayList<>();
                     var row = new ArrayList<Item>();
                     for (var it : flatItems) {
@@ -72,7 +72,6 @@ public class ItemController {
                         }
                     }
                     if (!row.isEmpty()) rows.add(row);
-
 
                     boolean hasPrev = page.pageNumber() > 1;
                     long startIndex = (long) (page.pageNumber() - 1) * page.pageSize();
@@ -95,6 +94,7 @@ public class ItemController {
     @PostMapping(value = "/main/items/{id}", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public Mono<String> updateCount(
             @PathVariable("id") Long id,
+            @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam("action") String action,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "NO") ItemSort sort,
@@ -102,8 +102,8 @@ public class ItemController {
             @RequestParam(defaultValue = "1") int pageNumber
     ) {
         Mono<Void> op = "plus".equals(action)
-                ? cartService.add(id).then()
-                : cartService.remove(id).then();
+                ? cartService.add(id, userDetails).then()
+                : cartService.remove(id, userDetails).then();
 
         return op.thenReturn(
                 String.format("redirect:/main/items?search=%s&sort=%s&pageSize=%d&pageNumber=%d",
@@ -112,13 +112,15 @@ public class ItemController {
     }
 
     @GetMapping("/items/{id}")
-    public Mono<Rendering> showItem(@PathVariable Long id) {
-        // Use cached synchronous item card but call it off the event loop
+    public Mono<Rendering> showItem(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
         return Mono.fromCallable(() -> itemService.getItemCardSync(id))
                 .subscribeOn(Schedulers.boundedElastic())
-                .zipWith(cartService.getOrCreateCart())
+                .zipWith(cartService.getOrCreateCart(userDetails))
                 .map(tuple -> {
-                    var dto  = tuple.getT1(); // ItemCardDto
+                    var dto  = tuple.getT1();
                     var cart = tuple.getT2();
 
                     int cnt = cart.getItems().stream()
@@ -127,7 +129,6 @@ public class ItemController {
                             .map(CartItem::getCount)
                             .orElse(0);
 
-                    // Build lightweight Item to satisfy your Thymeleaf view (getters used in template)
                     Item vm = new Item();
                     vm.setId(dto.id());
                     vm.setImgPath(dto.imgPath());
@@ -145,11 +146,12 @@ public class ItemController {
     @PostMapping("/items/{id}")
     public Mono<String> updateItemCount(
             @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam String action
     ) {
         Mono<Void> op = "plus".equals(action)
-                ? cartService.add(id).then()
-                : cartService.remove(id).then();
+                ? cartService.add(id, userDetails).then()
+                : cartService.remove(id, userDetails).then();
 
         return op.thenReturn("redirect:/items/" + id);
     }

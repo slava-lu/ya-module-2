@@ -1,15 +1,13 @@
 package com.example.shop.controllers;
 
-import com.example.shop.models.Cart;
-import com.example.shop.models.CartItem;
-import com.example.shop.models.Item;
+import com.example.shop.config.SecurityConfig;
 import com.example.shop.services.CartService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
-import org.springframework.http.MediaType;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
@@ -17,7 +15,14 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockUser;
+
 @WebFluxTest(controllers = CartController.class)
+@Import(SecurityConfig.class)
 class CartControllerTest {
 
     @Autowired
@@ -26,27 +31,25 @@ class CartControllerTest {
     @MockitoBean
     private CartService cartService;
 
-    private Cart cart;
+    @MockitoBean
+    private ReactiveUserDetailsService reactiveUserDetailsService;
 
-    @BeforeEach
-    void setUp() {
-        Item item1 = new Item(1L, "Item1", "Desc1", "/img/1.png", BigDecimal.valueOf(2.5), 0);
-        Item item2 = new Item(2L, "Item2", "Desc2", "/img/2.png", BigDecimal.valueOf(5.0), 0);
-        CartItem ci1 = new CartItem(); ci1.setItem(item1); ci1.setCount(2);
-        CartItem ci2 = new CartItem(); ci2.setItem(item2); ci2.setCount(1);
-        cart = new Cart();
-        cart.setId(99L);
-        cart.setItems(List.of(ci1, ci2));
-
-        Mockito.when(cartService.getOrCreateCart()).thenReturn(Mono.just(cart));
+    @Test
+    void showCart_withUnauthenticatedUser_redirectsToLogin() {
+        webTestClient
+                .get().uri("/cart/items")
+                .exchange()
+                .expectStatus().is3xxRedirection()
+                .expectHeader().valueMatches("Location", ".*/login");
     }
-
 
     @Test
     void whenPostUpdateCart_plus_thenAddAndRedirect() {
-        Mockito.when(cartService.add(42L)).thenReturn(Mono.empty());
+        when(cartService.add(eq(42L), any(UserDetails.class))).thenReturn(Mono.empty());
 
-        webTestClient.post()
+        webTestClient
+                .mutateWith(mockUser("user"))
+                .post()
                 .uri(uriBuilder ->
                         uriBuilder.path("/cart/items/{id}")
                                 .queryParam("action", "plus")
@@ -55,14 +58,16 @@ class CartControllerTest {
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/cart/items");
 
-        Mockito.verify(cartService).add(42L);
+        verify(cartService).add(eq(42L), any(UserDetails.class));
     }
 
     @Test
     void whenPostUpdateCart_minus_thenRemoveAndRedirect() {
-        Mockito.when(cartService.remove(43L)).thenReturn(Mono.empty());
+        when(cartService.remove(eq(43L), any(UserDetails.class))).thenReturn(Mono.empty());
 
-        webTestClient.post()
+        webTestClient
+                .mutateWith(mockUser("user"))
+                .post()
                 .uri(uriBuilder ->
                         uriBuilder.path("/cart/items/{id}")
                                 .queryParam("action", "minus")
@@ -71,14 +76,16 @@ class CartControllerTest {
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/cart/items");
 
-        Mockito.verify(cartService).remove(43L);
+        verify(cartService).remove(eq(43L), any(UserDetails.class));
     }
 
     @Test
     void whenPostUpdateCart_delete_thenDeleteAndRedirect() {
-        Mockito.when(cartService.delete(44L)).thenReturn(Mono.empty());
+        when(cartService.delete(eq(44L), any(UserDetails.class))).thenReturn(Mono.empty());
 
-        webTestClient.post()
+        webTestClient
+                .mutateWith(mockUser("user"))
+                .post()
                 .uri(uriBuilder ->
                         uriBuilder.path("/cart/items/{id}")
                                 .queryParam("action", "delete")
@@ -87,6 +94,7 @@ class CartControllerTest {
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/cart/items");
 
-        Mockito.verify(cartService).delete(44L);
+        verify(cartService).delete(eq(44L), any(UserDetails.class));
     }
 }
+

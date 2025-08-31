@@ -18,6 +18,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -103,7 +104,7 @@ public class ItemService {
             int limit = (int) (needUpTo - offset);
 
             Pageable pageable = PageRequest.of(
-                    limit == 0 ? 0 : offset / limit, // coarse page index
+                    limit == 0 ? 0 : offset / limit,
                     Math.max(limit, 1),
                     resolveSort(sort)
             );
@@ -148,7 +149,8 @@ public class ItemService {
         };
     }
 
-    private static final class CachedItems {
+    static final class CachedItems implements Serializable {
+        private static final long serialVersionUID = 1L;
         List<ItemListDto> items = new ArrayList<>();
         long total = -1;
     }

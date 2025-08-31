@@ -2,6 +2,8 @@ package com.example.shop.controllers;
 
 import com.example.shop.services.OrderService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -14,16 +16,16 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/buy")
-    public Mono<String> buy() {
-        return orderService.buyCart()
+    public Mono<String> buy(@AuthenticationPrincipal UserDetails userDetails) {
+        return orderService.buyCart(userDetails)
                 .map(newOrder ->
                         "redirect:/orders/" + newOrder.getId() + "?newOrder=true"
                 );
     }
 
     @GetMapping("/orders")
-    public Mono<Rendering> listOrders() {
-        return orderService.findAll()
+    public Mono<Rendering> listOrders(@AuthenticationPrincipal UserDetails userDetails) {
+        return orderService.findAllForUser(userDetails)
                 .collectList()
                 .map(orders ->
                         Rendering.view("orders")
@@ -35,9 +37,10 @@ public class OrderController {
     @GetMapping("/orders/{id}")
     public Mono<Rendering> showOrder(
             @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(defaultValue = "false") boolean newOrder
     ) {
-        return orderService.getById(id)
+        return orderService.findByIdForUser(id, userDetails)
                 .map(order ->
                         Rendering.view("order")
                                 .modelAttribute("order", order)

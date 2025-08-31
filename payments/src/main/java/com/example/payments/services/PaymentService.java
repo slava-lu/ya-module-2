@@ -1,29 +1,39 @@
 package com.example.payments.services;
 
 import com.example.payments.config.PaymentAccountProperties;
-import com.example.payments.models.PaymentAccount;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class PaymentService {
 
-    private final PaymentAccount account;
+    private final Map<String, BigDecimal> userBalances = new ConcurrentHashMap<>();
+    private final BigDecimal initialBalance;
 
     public PaymentService(PaymentAccountProperties properties) {
-        this.account = new PaymentAccount(properties.getId(), properties.getInitialBalance());
+        this.initialBalance = properties.getInitialBalance();
     }
 
-    public Mono<BigDecimal> getBalance() {
-        return Mono.just(account.getBalance());
+    public Mono<BigDecimal> getBalance(String username) {
+        BigDecimal balance = userBalances.computeIfAbsent(username, key -> initialBalance);
+        return Mono.just(balance);
     }
 
-    public Mono<String> processPayment(BigDecimal amount) {
-        if (amount.compareTo(account.getBalance()) <= 0) {
-            account.setBalance(account.getBalance().subtract(amount));
-            return Mono.just("Payment successful! Remaining balance: " + account.getBalance());
+    public Mono<String> processPayment(String username, BigDecimal amount) {
+        BigDecimal currentBalance = userBalances.computeIfAbsent(username, key -> initialBalance);
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return Mono.error(new IllegalArgumentException("Payment amount must be positive."));
+        }
+
+        if (currentBalance.compareTo(amount) >= 0) {
+            BigDecimal newBalance = currentBalance.subtract(amount);
+            userBalances.put(username, newBalance);
+            return Mono.just("Payment successful! Remaining balance: " + newBalance);
         } else {
             return Mono.error(new IllegalArgumentException("Insufficient funds"));
         }

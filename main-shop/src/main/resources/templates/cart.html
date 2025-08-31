@@ -1,19 +1,41 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <meta charset="utf-8">
 
 <head>
     <title>Корзина товаров</title>
+    <style>
+        .menu { width:100%; }
+        .menu > * { float: right; margin-left: 12px; }
+        .btn-link {
+            background: none; border: none; padding: 0; margin: 0;
+            font: inherit; color: inherit; cursor: pointer; text-decoration: underline;
+        }
+        .clearfix::after { content: ""; display: table; clear: both; }
+    </style>
 </head>
 
 <body>
-<a href="/orders" style="float:right;">
-    <b>ЗАКАЗЫ &cudarrr;</b>
-</a>
-<a href="/main/items" style="float:right;">
-    <b>ГЛАВНАЯ &cudarrr;</b>
-</a>
+
+
+<nav class="menu clearfix">
+
+    <form sec:authorize="isAuthenticated()"
+          th:action="@{/logout}" method="post" style="display:inline;">
+        <button class="btn-link"><b>ВЫЙТИ &cudarrr;</b></button>
+    </form>
+
+    <a sec:authorize="isAnonymous()" th:href="@{/login}">
+        <b>ВОЙТИ &cudarrr;</b>
+    </a>
+
+    <a sec:authorize="isAuthenticated()" href="/orders"><b>ЗАКАЗЫ &cudarrr;</b></a>
+
+    <a href="/main/items"><b>ГЛАВНАЯ &cudarrr;</b></a>
+</nav>
+
 <table style="width:70%;margin-left:auto;margin-right:auto;">
     <tr th:each="item : ${items}">
         <td>
