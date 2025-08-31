@@ -1,5 +1,6 @@
 package com.example.shop.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.client.*;
@@ -12,12 +13,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class OAuth2ClientConfig {
 
     @Bean
-    public ReactiveClientRegistrationRepository reactiveClientRegistrationRepository() {
+    public ReactiveClientRegistrationRepository reactiveClientRegistrationRepository
+            (@Value("${spring.security.oauth2.client.provider.auth-server.token-uri}") String tokenUri) {
         ClientRegistration reg = ClientRegistration.withRegistrationId("main-shop-client")
                 .clientId("main-shop-client")
                 .clientSecret("secret")
                 .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                .tokenUri("http://localhost:9000/oauth2/token")
+                .tokenUri(tokenUri)
                 .scope("payments.read", "payments.write")
                 .build();
         return new InMemoryReactiveClientRegistrationRepository(reg);
