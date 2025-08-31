@@ -8,7 +8,7 @@ INSERT INTO item (id, title, description, img_path, price) VALUES
 
 
 INSERT INTO users (id, name, email, password) VALUES
-    (1, 'Slava', 'slaval@mail.ru', 'password');
+    (1, 'Slava', 'slaval@mail.ru', '$2a$10$U3oF4o4Y4LEchK0wgK7YB.Ubfao0Vgygv0znFaWHCMA2dxTfY8UFK');
 
 INSERT INTO cart (id, user_id) VALUES
     (1, 1);
